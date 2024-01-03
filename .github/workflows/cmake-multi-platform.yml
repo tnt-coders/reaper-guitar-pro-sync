@@ -2,8 +2,6 @@ name: C++ CI
 
 on:
   push:
-    branches:
-      - main
     tags:
       - '*'
 env:
