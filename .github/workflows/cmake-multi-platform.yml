@@ -176,3 +176,4 @@ jobs:
               "${{ steps.create_release.outputs.upload_url }}=$(basename $file)"
           fi
         done
+
