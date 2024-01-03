@@ -1,5 +1,10 @@
 version: "{build}-{branch}"
 
+# effectively prevent this from running
+branches:
+  only:
+    - 666
+
 build_script:
   - export VCPKG_OVERLAY_TRIPLETS=cmake/vcpkg-triplets
   - cmake -B build -DCMAKE_BUILD_TYPE=Release
