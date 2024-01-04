@@ -2,6 +2,6 @@
 .vs/*
 !.vscode/launch.json
 **/.DS_Store
-/*build
+/*build*
 /*lib
 /*WDL
