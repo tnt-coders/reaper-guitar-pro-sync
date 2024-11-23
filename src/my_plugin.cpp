@@ -1,7 +1,6 @@
-#include "my_plugin.hpp"
+#include "my_plugin.h"
 #include "reaper_vararg.hpp"
 #include <gsl/gsl>
-#include <reaper_plugin_functions.h>
 
 #define STRINGIZE_DEF(x) #x
 #define STRINGIZE(x) STRINGIZE_DEF(x)
@@ -45,14 +44,12 @@ auto ToggleActionCallback(int command) -> int
         return -1;
     }
     if (toggle_action_state) // if toggle_action_state == true
-    {
         return 1;
-    }
     return 0;
 }
 
 // this gets called when my plugin action is run (e.g. from action list)
-bool OnAction(KbdSectionInfo *sec, int command, int val, int valhw, int relmode, HWND hwnd)
+bool OnAction(KbdSectionInfo* sec, int command, int val, int valhw, int relmode, HWND hwnd)
 {
     // treat unused variables 'pedantically'
     (void)sec;
@@ -63,9 +60,7 @@ bool OnAction(KbdSectionInfo *sec, int command, int val, int valhw, int relmode,
 
     // check command
     if (command != command_id)
-    {
         return false;
-    }
 
     // depending on RUN_ON_TIMER #definition,
     // register my plugins main function to timer
@@ -77,12 +72,12 @@ bool OnAction(KbdSectionInfo *sec, int command, int val, int valhw, int relmode,
         if (toggle_action_state) // if toggle_action_state == true
         {
             // "reaper.defer(main)"
-            plugin_register("timer", (void *)MainFunctionOfMyPlugin);
+            plugin_register("timer", (void*)MainFunctionOfMyPlugin);
         }
         else
         {
             // "reaper.atexit(shutdown)"
-            plugin_register("-timer", (void *)MainFunctionOfMyPlugin);
+            plugin_register("-timer", (void*)MainFunctionOfMyPlugin);
             // shutdown stuff
         }
     }
@@ -96,26 +91,35 @@ bool OnAction(KbdSectionInfo *sec, int command, int val, int valhw, int relmode,
 }
 
 // definition string for example API function
-auto reascript_api_function_example_defstring = "int" // return type
-                                                "\0"  // delimiter ('separator')
-                                                // input parameter types
-                                                "int,bool,double,const char*,int,const int*,double*,char*,int"
-                                                "\0"
-                                                // input parameter names
-                                                "whole_number,boolean_value,decimal_number,string_of_text,"
-                                                "string_of_text_sz,input_parameterInOptional,"
-                                                "return_valueOutOptional,"
-                                                "return_stringOutOptional,return_stringOutsz"
-                                                "\0"
-                                                "help text for myfunction\n"
-                                                "If optional input parameter is provided, produces optional return "
-                                                "value.\n"
-                                                "If boolean is true, copies input string to optional output string.\n";
+auto reascript_api_function_example_defstring =
+    "int" // return type
+    "\0"  // delimiter ('separator')
+    // input parameter types
+    "int,bool,double,const char*,int,const int*,double*,char*,int"
+    "\0"
+    // input parameter names
+    "whole_number,boolean_value,decimal_number,string_of_text,"
+    "string_of_text_sz,input_parameterInOptional,"
+    "return_valueOutOptional,"
+    "return_stringOutOptional,return_stringOutsz"
+    "\0"
+    "help text for myfunction\n"
+    "If optional input parameter is provided, produces optional return "
+    "value.\n"
+    "If boolean is true, copies input string to optional output string.\n";
 
 // example api function
-int ReaScriptAPIFunctionExample(int whole_number, bool boolean_value, double decimal_number, const char *string_of_text,
-                                int string_of_text_sz, const int *input_parameterInOptional,
-                                double *return_valueOutOptional, char *return_stringOutOptional, int return_string_sz)
+int ReaScriptAPIFunctionExample(
+    int whole_number,
+    bool boolean_value,
+    double decimal_number,
+    const char* string_of_text,
+    int string_of_text_sz,
+    const int* input_parameterInOptional,
+    double* return_valueOutOptional,
+    char* return_stringOutOptional,
+    int return_string_sz
+)
 {
     // if optional integer is provided
     if (input_parameterInOptional != nullptr)
@@ -136,23 +140,24 @@ int ReaScriptAPIFunctionExample(int whole_number, bool boolean_value, double dec
     return whole_number * whole_number;
 }
 
-auto defstring_GetVersion = "void" // return type
-                            "\0"   // delimiter ('separator')
-                            // input parameter types
-                            "int*,int*,int*,int*,char*,int"
-                            "\0"
-                            // input parameter names
-                            "majorOut,minorOut,patchOut,tweakOut,commitOut,commitOut_sz"
-                            "\0"
-                            "returns version numbers of my plugin\n";
+auto defstring_GetVersion =
+    "void" // return type
+    "\0"   // delimiter ('separator')
+    // input parameter types
+    "int*,int*,int*,int*,char*,int"
+    "\0"
+    // input parameter names
+    "majorOut,minorOut,patchOut,tweakOut,commitOut,commitOut_sz"
+    "\0"
+    "returns version numbers of my plugin\n";
 
-void GetVersion(int *majorOut, int *minorOut, int *patchOut, int *tweakOut, char *commitOut, int commitOut_sz)
+void GetVersion(int* majorOut, int* minorOut, int* patchOut, int* tweakOut, char* commitOut, int commitOut_sz)
 {
     *majorOut = PROJECT_VERSION_MAJOR;
     *minorOut = PROJECT_VERSION_MINOR;
     *patchOut = PROJECT_VERSION_PATCH;
     *tweakOut = PROJECT_VERSION_TWEAK;
-    const char *commit = STRINGIZE(PROJECT_VERSION_COMMIT);
+    const char* commit = STRINGIZE(PROJECT_VERSION_COMMIT);
     std::copy(commit, commit + min(commitOut_sz - 1, (int)strlen(commit)), commitOut);
     commitOut[min(commitOut_sz - 1, (int)strlen(commit))] = '\0'; // Ensure null termination
 }
@@ -166,24 +171,22 @@ void Register()
 
     // register action on/off state and callback function
     if (RUN_ON_TIMER)
-    {
-        plugin_register("toggleaction", (void *)ToggleActionCallback);
-    }
+        plugin_register("toggleaction", (void*)ToggleActionCallback);
 
     // register run action/command
-    plugin_register("hookcommand2", (void *)OnAction);
+    plugin_register("hookcommand2", (void*)OnAction);
 
     // register the API function example
     // function, definition string and function 'signature'
-    plugin_register("API_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void *)ReaScriptAPIFunctionExample);
-    plugin_register("APIdef_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample",
-                                        (void *)reascript_api_function_example_defstring);
-    plugin_register("APIvararg_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample",
-                                           (void *)&InvokeReaScriptAPI<&ReaScriptAPIFunctionExample>);
+    plugin_register("API_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)ReaScriptAPIFunctionExample);
+    plugin_register(
+        "APIdef_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)reascript_api_function_example_defstring
+    );
+    plugin_register("APIvararg_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)&InvokeReaScriptAPI<&ReaScriptAPIFunctionExample>);
 
-    plugin_register("API_" STRINGIZE(API_ID)"_GetVersion", (void *)GetVersion);
-    plugin_register("APIdef_" STRINGIZE(API_ID)"_GetVersion", (void *)defstring_GetVersion);
-    plugin_register("APIvararg_" STRINGIZE(API_ID)"_GetVersion", (void *)&InvokeReaScriptAPI<&GetVersion>);
+    plugin_register("API_" STRINGIZE(API_ID)"_GetVersion", (void*)GetVersion);
+    plugin_register("APIdef_" STRINGIZE(API_ID)"_GetVersion", (void*)defstring_GetVersion);
+    plugin_register("APIvararg_" STRINGIZE(API_ID)"_GetVersion", (void*)&InvokeReaScriptAPI<&GetVersion>);
 }
 
 // shutdown, time to exit
@@ -191,8 +194,8 @@ void Register()
 auto Unregister() -> void
 {
     plugin_register("-custom_action", &action);
-    plugin_register("-toggleaction", (void *)ToggleActionCallback);
-    plugin_register("-hookcommand2", (void *)OnAction);
+    plugin_register("-toggleaction", (void*)ToggleActionCallback);
+    plugin_register("-hookcommand2", (void*)OnAction);
 }
 
 } // namespace PROJECT_NAME
