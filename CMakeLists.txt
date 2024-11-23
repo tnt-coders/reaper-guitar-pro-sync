@@ -174,7 +174,11 @@ else()
   set_target_properties(
     ${PROJECT_NAME} 
     PROPERTIES 
-    COMPILE_OPTIONS "-fno-unsigned-char -fstack-protector-strong -fdiagnostics-color")
+    COMPILE_OPTIONS 
+    -fno-unsigned-char 
+    -fstack-protector-strong 
+    -fdiagnostics-color
+    )
 endif()
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
