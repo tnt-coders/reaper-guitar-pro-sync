@@ -174,7 +174,7 @@ else()
   add_compile_options(-fsigned-char -fstack-protector-strong -fdiagnostics-color)
 endif()
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
 
 if(WIN32)
     target_compile_options(
