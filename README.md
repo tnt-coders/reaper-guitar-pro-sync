@@ -15,7 +15,7 @@ Mainstream Linux distributions usually include compiler and many of other necess
 * Install [Visual Studio Code](https://code.visualstudio.com/) (VSCode).
 * Install [Git](https://git-scm.com/downloads), if not already installed. 
 * On Windows, open **Developer PowerShell (or Command Prompt) for VS**. On MacOS and Linux, use regular Terminal. Change directory to user preferred location for source repositories, or make one.
-* Get [reaper-sdk-vscode](https://github.com/ak5k/reaper-sdk-vscode) files, preferably with `git clone --recursive https://github.com/ak5k/reaper-sdk-vscode.git`, or by [creating a new repository from this template](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) and cloning it to local host. Currently templates don't include submodules, in this case [WDL](https://www.cockos.com/wdl/) library.
+* Get [reaper-sdk-vscode](https://github.com/tnt/reaper-sdk-vscode) files, preferably with `git clone --recursive https://github.com/tnt/reaper-sdk-vscode.git`, or by [creating a new repository from this template](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) and cloning it to local host. Currently templates don't include submodules, in this case [WDL](https://www.cockos.com/wdl/) library.
 * Change directory to root of this repository.
 * Install [VSCode C/C++ Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-extension-pack) with `code --verbose --install-extension ms-vscode.cpptools-extension-pack`. This might take a while.
 * If command `code` isn't found on Mac, see [this](https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line) and try again.
@@ -34,12 +34,12 @@ Mainstream Linux distributions usually include compiler and many of other necess
 * Configuration for plugin and building/compiling.
 ### `src/main.cpp`
 * "The" REAPER plugin.
-### `src/my_plugin.cpp`
+### `src/guitar_pro_adapter.cpp`
 * "The" actual source.
 ## First steps
 * By default, VSCode builds a debug version of the plugin it by running `CMake: Build` or keyboard shortcut `F7`.
 * Install plugin with VSCode command `CMake: Install`.
-* Start REAPER, and new plugin and it's Action ("ak5k: my plugin" by default) should show up in the Actions List.
+* Start REAPER, and new plugin and it's Action ("tnt: guitar pro adapter" by default) should show up in the Actions List.
 * Running the Action should result in 'hello, world' Console Message.
 * [VSCode docs](https://code.visualstudio.com/docs/languages/cpp#_tutorials) and [Microsoft C++ docs](https://docs.microsoft.com/en-us/cpp/cpp/) are a helpful resource. And, of course, [ReaScript, JSFX, REAPER Plug-in Extensions, Developer Forum](https://forum.cockos.com/forumdisplay.php?f=3).
 * Choosing between debug and release builds can be done with `CMake: Select Variant`.

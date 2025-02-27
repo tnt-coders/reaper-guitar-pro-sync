@@ -1,4 +1,4 @@
-#include "my_plugin.h"
+#include "guitar_pro_adapter.h"
 #include "reaper_vararg.hpp"
 #include <gsl/gsl>
 
@@ -11,7 +11,7 @@
 #define API_ID MYAPI
 #define RUN_ON_TIMER true
 
-// confine my plugin to namespace
+// confine guitar pro adapter to namespace
 namespace PROJECT_NAME
 {
 
@@ -19,23 +19,23 @@ namespace PROJECT_NAME
 // the necessary 'evil'
 int command_id{0};
 bool toggle_action_state{false};
-constexpr auto command_name = "AK5K_" STRINGIZE(PROJECT_NAME) "_COMMAND";
-constexpr auto action_name = "ak5k: " STRINGIZE(PROJECT_NAME);
+constexpr auto command_name = "TNT_" STRINGIZE(PROJECT_NAME) "_COMMAND";
+constexpr auto action_name = "tnt: " STRINGIZE(PROJECT_NAME);
 custom_action_register_t action = {0, command_name, action_name, nullptr};
 
-// hInstance is declared in header file my_plugin.hpp
+// hInstance is declared in header file guitar_pro_adapter.hpp
 // defined here
 REAPER_PLUGIN_HINSTANCE hInstance{nullptr}; // used for dialogs, if any
 
-// the main function of my plugin
+// the main function of guitar pro adapter
 // gets called via callback or timer
-void MainFunctionOfMyPlugin()
+void MainFunctionOfGuitarProAdapter()
 {
     ShowConsoleMsg("hello, world\n");
 }
 
 // c++11 trailing return type syntax
-// REAPER calls this to check my plugin toggle state
+// REAPER calls this to check guitar pro adapter toggle state
 auto ToggleActionCallback(int command) -> int
 {
     if (command != command_id)
@@ -48,7 +48,7 @@ auto ToggleActionCallback(int command) -> int
     return 0;
 }
 
-// this gets called when my plugin action is run (e.g. from action list)
+// this gets called when guitar pro adapter action is run (e.g. from action list)
 bool OnAction(KbdSectionInfo* sec, int command, int val, int valhw, int relmode, HWND hwnd)
 {
     // treat unused variables 'pedantically'
@@ -63,7 +63,7 @@ bool OnAction(KbdSectionInfo* sec, int command, int val, int valhw, int relmode,
         return false;
 
     // depending on RUN_ON_TIMER #definition,
-    // register my plugins main function to timer
+    // register guitar pro adapters main function to timer
     if (RUN_ON_TIMER) // RUN_ON_TIMER is true or false
     {
         // flip state on/off
@@ -72,19 +72,19 @@ bool OnAction(KbdSectionInfo* sec, int command, int val, int valhw, int relmode,
         if (toggle_action_state) // if toggle_action_state == true
         {
             // "reaper.defer(main)"
-            plugin_register("timer", (void*)MainFunctionOfMyPlugin);
+            plugin_register("timer", (void*)MainFunctionOfGuitarProAdapter);
         }
         else
         {
             // "reaper.atexit(shutdown)"
-            plugin_register("-timer", (void*)MainFunctionOfMyPlugin);
+            plugin_register("-timer", (void*)MainFunctionOfGuitarProAdapter);
             // shutdown stuff
         }
     }
     else
     {
         // else call main function once
-        MainFunctionOfMyPlugin();
+        MainFunctionOfGuitarProAdapter();
     }
 
     return true;
@@ -149,7 +149,7 @@ auto defstring_GetVersion =
     // input parameter names
     "majorOut,minorOut,patchOut,tweakOut,commitOut,commitOut_sz"
     "\0"
-    "returns version numbers of my plugin\n";
+    "returns version numbers of guitar pro adapter\n";
 
 void GetVersion(int* majorOut, int* minorOut, int* patchOut, int* tweakOut, char* commitOut, int commitOut_sz)
 {
@@ -162,8 +162,8 @@ void GetVersion(int* majorOut, int* minorOut, int* patchOut, int* tweakOut, char
     commitOut[min(commitOut_sz - 1, (int)strlen(commit))] = '\0'; // Ensure null termination
 }
 
-// when my plugin gets loaded
-// function to register my plugins 'stuff' with REAPER
+// when guitar pro adapter gets loaded
+// function to register guitar pro adapters 'stuff' with REAPER
 void Register()
 {
     // register action name and get command_id
