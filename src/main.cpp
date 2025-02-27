@@ -4,7 +4,7 @@
 
 #include <reaper_plugin_functions.h>
 
-#include "guitar_pro_adapter.h"
+#include "guitar_pro_sync.h"
 
 extern "C"
 {

@@ -34,12 +34,12 @@ Mainstream Linux distributions usually include compiler and many of other necess
 * Configuration for plugin and building/compiling.
 ### `src/main.cpp`
 * "The" REAPER plugin.
-### `src/guitar_pro_adapter.cpp`
+### `src/guitar_pro_sync.cpp`
 * "The" actual source.
 ## First steps
 * By default, VSCode builds a debug version of the plugin it by running `CMake: Build` or keyboard shortcut `F7`.
 * Install plugin with VSCode command `CMake: Install`.
-* Start REAPER, and new plugin and it's Action ("tnt: guitar pro adapter" by default) should show up in the Actions List.
+* Start REAPER, and new plugin and it's Action ("tnt: guitar pro sync" by default) should show up in the Actions List.
 * Running the Action should result in 'hello, world' Console Message.
 * [VSCode docs](https://code.visualstudio.com/docs/languages/cpp#_tutorials) and [Microsoft C++ docs](https://docs.microsoft.com/en-us/cpp/cpp/) are a helpful resource. And, of course, [ReaScript, JSFX, REAPER Plug-in Extensions, Developer Forum](https://forum.cockos.com/forumdisplay.php?f=3).
 * Choosing between debug and release builds can be done with `CMake: Select Variant`.
