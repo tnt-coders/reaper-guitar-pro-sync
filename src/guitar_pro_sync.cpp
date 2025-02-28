@@ -20,7 +20,7 @@ namespace PROJECT_NAME
 int command_id{0};
 bool toggle_action_state{false};
 constexpr auto command_name = "TNT_" STRINGIZE(PROJECT_NAME) "_COMMAND";
-constexpr auto action_name = "tnt: " STRINGIZE(PROJECT_NAME) "(on/off)";
+constexpr auto action_name = "tnt: " STRINGIZE(PROJECT_NAME) " (on/off)";
 custom_action_register_t action = {0, command_name, action_name, nullptr};
 
 // hInstance is declared in header file guitar_pro_sync.hpp
