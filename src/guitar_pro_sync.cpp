@@ -1,6 +1,10 @@
 #include "guitar_pro_sync.h"
 #include "reaper_vararg.hpp"
 #include <gsl/gsl>
+#include <string>
+#include <tlhelp32.h>
+#include <vector>
+#include <windows.h>
 
 #define STRINGIZE_DEF(x) #x
 #define STRINGIZE(x) STRINGIZE_DEF(x)
@@ -9,7 +13,7 @@
 // register main function on timer
 // true or false
 #define API_ID MYAPI
-#define RUN_ON_TIMER false
+#define RUN_ON_TIMER true
 
 // confine guitar pro sync to namespace
 namespace PROJECT_NAME
@@ -27,12 +31,116 @@ custom_action_register_t action = {0, command_name, action_name, nullptr};
 // defined here
 REAPER_PLUGIN_HINSTANCE hInstance{nullptr}; // used for dialogs, if any
 
+// Helper functions
+DWORD GetProcessID(const wchar_t* exeName)
+{
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+
+    PROCESSENTRY32 pe;
+    pe.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(hSnap, &pe))
+    {
+        do
+        {
+            if (_wcsicmp(pe.szExeFile, exeName) == 0)
+            {
+                CloseHandle(hSnap);
+                return pe.th32ProcessID;
+            }
+        } while (Process32Next(hSnap, &pe));
+    }
+
+    CloseHandle(hSnap);
+    return 0;
+}
+
+DWORD64 GetModuleBaseAddress(DWORD processID, const wchar_t* moduleName)
+{
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, processID);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+
+    MODULEENTRY32W modEntry;
+    modEntry.dwSize = sizeof(modEntry);
+
+    if (Module32FirstW(hSnap, &modEntry))
+    {
+        do
+        {
+            if (_wcsicmp(modEntry.szModule, moduleName) == 0)
+            {
+                CloseHandle(hSnap);
+                return (DWORD64)modEntry.modBaseAddr;
+            }
+        } while (Module32NextW(hSnap, &modEntry));
+    }
+
+    CloseHandle(hSnap);
+    return 0;
+}
+
+uintptr_t ReadPointer(HANDLE hProcess, uintptr_t baseAddress, std::vector<DWORD64> offsets)
+{
+    uintptr_t address = baseAddress;
+    uintptr_t tempAddress;
+
+    for (size_t i = 0; i < offsets.size(); i++)
+    {
+        if (!ReadProcessMemory(hProcess, (LPCVOID)address, &tempAddress, sizeof(tempAddress), nullptr))
+        {
+            return 0;
+        }
+
+        address = tempAddress + offsets[i];
+    }
+
+    return address; // Final address pointing to the actual value
+}
+
 // the main function of guitar pro sync
 // gets called via callback or timer
 void MainFunctionOfGuitarProSync()
 {
-    SetEditCurPos(10, true, true);
-    ShowConsoleMsg("hello, world\n");
+    static double prevEditCurPos = 0.0;
+
+    DWORD processID = GetProcessID(L"GuitarPro.exe");
+    HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, processID);
+    if (!hProcess) {
+        ShowConsoleMsg("Failed to open GuitarPro.exe\n");
+        return;
+    }
+
+    DWORD64 moduleBase = GetModuleBaseAddress(processID, L"GuitarPro.exe");
+
+    // Base Address from Cheat Engine (GuitarPro.exe + 0x02FB0468)
+    DWORD64 baseAddress = moduleBase + 0x02FB0468;
+
+    // Offset Chain (from Cheat Engine)
+    std::vector<DWORD64> offsets = { 0x10, 0x28, 0x30, 0x50, 0x1D8, 0x0 };
+
+    // Resolve the pointer
+    DWORD64 finalAddress = ReadPointer(hProcess, baseAddress, offsets);
+
+    // Read the actual value at the final address
+    int value;
+    ReadProcessMemory(hProcess, (LPCVOID)finalAddress, &value, sizeof(value), nullptr);
+
+    double editCurPos = static_cast<double>(value)/44100;
+
+    std::string message = std::to_string(editCurPos) + "\n";
+    ShowConsoleMsg(message.c_str());
+
+    CloseHandle(hProcess);
+
+    //SetEditCurPos(editCurPos, true, true);
+    //ShowConsoleMsg("hello, world\n");
 }
 
 // c++11 trailing return type syntax
