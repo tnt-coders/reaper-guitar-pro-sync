@@ -25,6 +25,8 @@
 namespace PROJECT_NAME
 {
 
+constexpr int PRESERVE_PITCH_COMMAND = 40671;
+
 // Helper functions
 DWORD GetProcessID(const wchar_t* exeName)
 {
@@ -119,16 +121,9 @@ public:
         {
             // Reads REAPER and Guitar Pro data
             this->ReadApplicationData();
-
+ 
             // If guitar pro is playing then enable Guitar Pro control
-            if (m_guitarProPlaybackRate > 0.001)
-            {
-                m_guitarProControl = true;
-            }
-            else
-            {
-                m_guitarProControl = false;
-            }
+            m_guitarProControl = m_guitarProPlaybackRate > 0.001;
 
             // If Guitar Pro control is enabled sync with Guitar Pro
             if (m_guitarProControl)
@@ -136,11 +131,18 @@ public:
                 if (!m_prevGuitarProControl)
                 {
                     // If guitar pro control was not previously on, save original settings
+                    m_origReaperPreservePitch = GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 1;
                     m_origReaperCursorPosition = GetCursorPosition();
                     m_origReaperPlaybackRate = Master_GetPlayRate(nullptr);
 
+                    // If Preserve Pitch is OFF, enable it
+                    if (!m_origReaperPreservePitch)
+                    {
+                        Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+                    }
+
                     // Set REAPER state to match Guitar Pro
-                    SetEditCurPos(m_guitarProCursorPosition, false, true);
+                    SetEditCurPos(m_guitarProPlayPosition, false, true);
                     CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
                     CSurf_OnPlay();
                 }
@@ -151,12 +153,23 @@ public:
                 this->SyncPlayState();
             }
 
-            // If guitar pro control is NOT enabled, but it was previously, restore saved settings
+            // If Guitar Pro control is NOT enabled, but it was previously, restore saved settings
             else if (m_prevGuitarProControl)
             {
+                // If Preserve Pitch is OFF, enable it
+                if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
+                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+                }
+
                 CSurf_OnStop(); // Stop playback
                 CSurf_OnPlayRateChange(m_origReaperPlaybackRate); // Restore playback rate
                 SetEditCurPos(m_origReaperCursorPosition, false, true); // Restore edit cursor position
+
+                // Reset preserve pitch
+                if (!m_origReaperPreservePitch)
+                {
+                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+                }
             }
 
             // Save last guitar pro control state
@@ -200,8 +213,8 @@ private:
         }();
 
         // Read cursor position
-        m_reaperCursorPosition = GetCursorPosition();
-        m_guitarProCursorPosition = [&] {
+        m_reaperPlayPosition = GetPlayPosition();
+        m_guitarProPlayPosition = [&] {
 
             // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
             DWORD64 baseAddress = moduleBase + 0x00A24F80;
@@ -227,13 +240,13 @@ private:
     void SyncCursor()
     {
         // If cursor locations don't match, sync them
-        if (!CompareDouble(m_reaperCursorPosition, m_guitarProCursorPosition, 5)
-            || m_guitarProCursorPosition < m_prevGuitarProCursorPosition)
+        if (!CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 0.1)
+            || m_guitarProPlayPosition < m_prevGuitarProPlayPosition)
         {
-            SetEditCurPos(m_guitarProCursorPosition, false, true);
+            SetEditCurPos(m_guitarProPlayPosition, false, true);
         }
 
-        m_prevGuitarProCursorPosition = m_guitarProCursorPosition;
+        m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
     }
 
     void SyncPlaybackRate()
@@ -241,6 +254,11 @@ private:
         // If playback rates don't match, sync them
         if (!CompareDouble(m_reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
         {
+            // If Preserve Pitch is OFF, enable it
+            if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
+                Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+            }
+
             CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
         }
     }
@@ -261,12 +279,17 @@ private:
     // Guitar Pro control state
     bool m_prevGuitarProControl = false;
     bool m_guitarProControl = false;
+
+    // Preserve pitch seting
+    bool m_origReaperPreservePitch = false;
     
     // Cursor position
     double m_origReaperCursorPosition = 0.0;
-    double m_reaperCursorPosition = 0.0;
-    double m_prevGuitarProCursorPosition = 0.0;
-    double m_guitarProCursorPosition = 0.0;
+
+    // Play position
+    double m_reaperPlayPosition = 0.0;
+    double m_prevGuitarProPlayPosition = 0.0;
+    double m_guitarProPlayPosition = 0.0;
 
     // Playback rate
     double m_origReaperPlaybackRate = 1.0;
