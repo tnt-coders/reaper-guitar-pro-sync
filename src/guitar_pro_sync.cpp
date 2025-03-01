@@ -141,8 +141,8 @@ public:
                         Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
                     }
 
-                    // Set REAPER state to match Guitar Pro
-                    SetEditCurPos(m_guitarProPlayPosition, false, true);
+                    // Set REAPER state to match Guitar Pro (use previous cursor position to reduce latency)
+                    SetEditCurPos(m_prevGuitarProPlayPosition, false, true);
                     CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
                     CSurf_OnPlay();
                 }
@@ -240,7 +240,7 @@ private:
     void SyncCursor()
     {
         // If cursor locations don't match, sync them
-        if (!CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 0.1)
+        if (!CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 1)
             || m_guitarProPlayPosition < m_prevGuitarProPlayPosition)
         {
             SetEditCurPos(m_guitarProPlayPosition, false, true);
@@ -259,7 +259,11 @@ private:
                 Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
             }
 
+            // REAPER handles stretching much more efficiently if the song is paused
+            CSurf_OnPause();
             CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
+            SetEditCurPos(m_guitarProPlayPosition, false, true);
+            CSurf_OnPlay();
         }
     }
 
