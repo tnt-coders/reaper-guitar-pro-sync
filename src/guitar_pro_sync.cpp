@@ -1,10 +1,16 @@
 #include "guitar_pro_sync.h"
 #include "reaper_vararg.hpp"
 #include <gsl/gsl>
+#include <stdexcept>
 #include <string>
 #include <tlhelp32.h>
 #include <vector>
 #include <windows.h>
+
+//TODO remove
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 #define STRINGIZE_DEF(x) #x
 #define STRINGIZE(x) STRINGIZE_DEF(x)
@@ -18,18 +24,6 @@
 // confine guitar pro sync to namespace
 namespace PROJECT_NAME
 {
-
-// some global non-const variables
-// the necessary 'evil'
-int command_id{0};
-bool toggle_action_state{false};
-constexpr auto command_name = "TNT_" STRINGIZE(PROJECT_NAME) "_COMMAND";
-constexpr auto action_name = "tnt: " STRINGIZE(PROJECT_NAME) " (on/off)";
-custom_action_register_t action = {0, command_name, action_name, nullptr};
-
-// hInstance is declared in header file guitar_pro_sync.hpp
-// defined here
-REAPER_PLUGIN_HINSTANCE hInstance{nullptr}; // used for dialogs, if any
 
 // Helper functions
 DWORD GetProcessID(const wchar_t* exeName)
@@ -56,6 +50,7 @@ DWORD GetProcessID(const wchar_t* exeName)
     }
 
     CloseHandle(hSnap);
+
     return 0;
 }
 
@@ -83,6 +78,7 @@ DWORD64 GetModuleBaseAddress(DWORD processID, const wchar_t* moduleName)
     }
 
     CloseHandle(hSnap);
+
     return 0;
 }
 
@@ -104,43 +100,203 @@ uintptr_t ReadPointer(HANDLE hProcess, uintptr_t baseAddress, std::vector<DWORD6
     return address; // Final address pointing to the actual value
 }
 
+// Returns true if doubles are within epsilon
+bool CompareDouble(const double val1, const double val2, const double epsilon)
+{
+    return fabs(val1 - val2) < epsilon;
+}
+
+// Class for the plugin
+class GuitarProSync final
+{
+public:
+    GuitarProSync() = default;
+    ~GuitarProSync() = default;
+
+    void Run()
+    {
+        try
+        {
+            // Reads REAPER and Guitar Pro data
+            this->ReadApplicationData();
+
+            // If guitar pro is playing then enable Guitar Pro control
+            if (m_guitarProPlaybackRate > 0.001)
+            {
+                m_guitarProControl = true;
+            }
+            else
+            {
+                m_guitarProControl = false;
+            }
+
+            // If Guitar Pro control is enabled sync with Guitar Pro
+            if (m_guitarProControl)
+            {
+                if (!m_prevGuitarProControl)
+                {
+                    // If guitar pro control was not previously on, save original settings
+                    m_origReaperCursorPosition = GetCursorPosition();
+                    m_origReaperPlaybackRate = Master_GetPlayRate(nullptr);
+
+                    // Set REAPER state to match Guitar Pro
+                    SetEditCurPos(m_guitarProCursorPosition, false, true);
+                    CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
+                    CSurf_OnPlay();
+                }
+
+                // Ensure REAPER stays in sync
+                this->SyncCursor();
+                this->SyncPlaybackRate();
+                this->SyncPlayState();
+            }
+
+            // If guitar pro control is NOT enabled, but it was previously, restore saved settings
+            else if (m_prevGuitarProControl)
+            {
+                CSurf_OnStop(); // Stop playback
+                CSurf_OnPlayRateChange(m_origReaperPlaybackRate); // Restore playback rate
+                SetEditCurPos(m_origReaperCursorPosition, false, true); // Restore edit cursor position
+            }
+
+            // Save last guitar pro control state
+            m_prevGuitarProControl = m_guitarProControl;
+        }
+        catch(const std::exception& e)
+        {
+            ShowConsoleMsg(e.what());
+        }
+    }
+
+private:
+    void ReadApplicationData()
+    {
+        DWORD processID = GetProcessID(L"GuitarPro.exe");
+        HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, processID);
+        if (!hProcess) {
+            throw std::exception("Failed to open GuitarPro.exe\n");
+        }
+
+        DWORD64 moduleBase = GetModuleBaseAddress(processID, L"GPCore.dll");
+
+        // Read playback rate
+        m_reaperPlaybackRate = Master_GetPlayRate(nullptr);
+        m_guitarProPlaybackRate = [&] {
+        
+            // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
+            DWORD64 baseAddress = moduleBase + 0x00A24F80;
+
+            // Offset Chain (from Cheat Engine)
+            std::vector<DWORD64> offsets = { 0x18, 0xA0, 0x38, 0x80, 0x18, 0x68, 0x28, 0x74 };
+
+            // Resolve the pointer
+            DWORD64 finalAddress = ReadPointer(hProcess, baseAddress, offsets);
+
+            // Read the actual value at the final address
+            float value;
+            ReadProcessMemory(hProcess, (LPCVOID)finalAddress, &value, sizeof(value), nullptr);
+
+            return static_cast<double>(value);
+        }();
+
+        // Read cursor position
+        m_reaperCursorPosition = GetCursorPosition();
+        m_guitarProCursorPosition = [&] {
+
+            // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
+            DWORD64 baseAddress = moduleBase + 0x00A24F80;
+
+            // Offset Chain (from Cheat Engine)
+            std::vector<DWORD64> offsets = { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1D8, 0x0 };
+
+            // Resolve the pointer
+            DWORD64 finalAddress = ReadPointer(hProcess, baseAddress, offsets);
+
+            // Read the actual value at the final address
+            int value;
+            ReadProcessMemory(hProcess, (LPCVOID)finalAddress, &value, sizeof(value), nullptr);
+
+            return static_cast<double>(value)/m_sampleRate;
+        }();
+
+        m_reaperPlayState = GetPlayState();
+        
+        CloseHandle(hProcess);
+    }
+
+    void SyncCursor()
+    {
+        // If cursor locations don't match, sync them
+        if (!CompareDouble(m_reaperCursorPosition, m_guitarProCursorPosition, 5)
+            || m_guitarProCursorPosition < m_prevGuitarProCursorPosition)
+        {
+            SetEditCurPos(m_guitarProCursorPosition, false, true);
+        }
+
+        m_prevGuitarProCursorPosition = m_guitarProCursorPosition;
+    }
+
+    void SyncPlaybackRate()
+    {
+        // If playback rates don't match, sync them
+        if (!CompareDouble(m_reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
+        {
+            CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
+        }
+    }
+
+    void SyncPlayState()
+    {
+        // If guitar pro control is enabled, playstate is always 1 (playing)
+        if (m_reaperPlayState != 1)
+        {
+            CSurf_OnPlay();
+        }
+    }
+
+private:
+    // Seems to always be 44100 for guitar pro
+    const int m_sampleRate = 44100;
+
+    // Guitar Pro control state
+    bool m_prevGuitarProControl = false;
+    bool m_guitarProControl = false;
+    
+    // Cursor position
+    double m_origReaperCursorPosition = 0.0;
+    double m_reaperCursorPosition = 0.0;
+    double m_prevGuitarProCursorPosition = 0.0;
+    double m_guitarProCursorPosition = 0.0;
+
+    // Playback rate
+    double m_origReaperPlaybackRate = 1.0;
+    double m_reaperPlaybackRate = 1.0;
+    double m_prevGuitarProPlaybackRate = 0.0;
+    double m_guitarProPlaybackRate = 0.0;
+
+    // Play state (1=playing, 2=paused, 4=recording)
+    int m_reaperPlayState = 2;
+};
+
+// some global non-const variables
+// the necessary 'evil'
+int command_id{0};
+bool toggle_action_state{false};
+constexpr auto command_name = "TNT_" STRINGIZE(PROJECT_NAME) "_COMMAND";
+constexpr auto action_name = "tnt: " STRINGIZE(PROJECT_NAME) " (on/off)";
+custom_action_register_t action = {0, command_name, action_name, nullptr};
+
+GuitarProSync guitarProSync;
+
+// hInstance is declared in header file guitar_pro_sync.hpp
+// defined here
+REAPER_PLUGIN_HINSTANCE hInstance{nullptr}; // used for dialogs, if any
+
 // the main function of guitar pro sync
 // gets called via callback or timer
 void MainFunctionOfGuitarProSync()
 {
-    static double prevEditCurPos = 0.0;
-
-    DWORD processID = GetProcessID(L"GuitarPro.exe");
-    HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, processID);
-    if (!hProcess) {
-        ShowConsoleMsg("Failed to open GuitarPro.exe\n");
-        return;
-    }
-
-    DWORD64 moduleBase = GetModuleBaseAddress(processID, L"GuitarPro.exe");
-
-    // Base Address from Cheat Engine (GuitarPro.exe + 0x02FB0468)
-    DWORD64 baseAddress = moduleBase + 0x02FB0468;
-
-    // Offset Chain (from Cheat Engine)
-    std::vector<DWORD64> offsets = { 0x10, 0x28, 0x30, 0x50, 0x1D8, 0x0 };
-
-    // Resolve the pointer
-    DWORD64 finalAddress = ReadPointer(hProcess, baseAddress, offsets);
-
-    // Read the actual value at the final address
-    int value;
-    ReadProcessMemory(hProcess, (LPCVOID)finalAddress, &value, sizeof(value), nullptr);
-
-    double editCurPos = static_cast<double>(value)/44100;
-
-    std::string message = std::to_string(editCurPos) + "\n";
-    ShowConsoleMsg(message.c_str());
-
-    CloseHandle(hProcess);
-
-    //SetEditCurPos(editCurPos, true, true);
-    //ShowConsoleMsg("hello, world\n");
+    guitarProSync.Run();
 }
 
 // c++11 trailing return type syntax
