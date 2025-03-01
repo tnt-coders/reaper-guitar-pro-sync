@@ -120,35 +120,35 @@ public:
         try
         {
             // Reads REAPER and Guitar Pro data
-            this->ReadApplicationData();
+            this->ReadGuitarProData();
+
+            // If Preserve Pitch is OFF, enable it
+            if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0)
+            {
+                Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+            }
  
+            //TODO: find memory address that stores play state for better accuracy
             // If guitar pro is playing then enable Guitar Pro control
-            m_guitarProControl = m_guitarProPlaybackRate > 0.001;
+            m_guitarProControl = m_guitarProPlayPosition != m_prevGuitarProPlayPosition;
 
             // If Guitar Pro control is enabled sync with Guitar Pro
             if (m_guitarProControl)
             {
                 if (!m_prevGuitarProControl)
                 {
-                    // If guitar pro control was not previously on, save original settings
-                    m_origReaperPreservePitch = GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 1;
-                    m_origReaperCursorPosition = GetCursorPosition();
-                    m_origReaperPlaybackRate = Master_GetPlayRate(nullptr);
-
-                    // If Preserve Pitch is OFF, enable it
-                    if (!m_origReaperPreservePitch)
-                    {
-                        Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
-                    }
-
                     // Set REAPER state to match Guitar Pro (use previous cursor position to reduce latency)
                     SetEditCurPos(m_prevGuitarProPlayPosition, false, true);
-                    CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
-                    CSurf_OnPlay();
+
+                    //TODO: Find a better way to set initial playback rate (maybe read different memory from Guitar Pro)
+                    // Guitar pro lags in setting the play rate in memory, it will be synced as soon as the memory updates
+                    //CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
+                    
+                    //CSurf_OnPlay();
                 }
 
                 // Ensure REAPER stays in sync
-                this->SyncCursor();
+                this->SyncPlayPosition();
                 this->SyncPlaybackRate();
                 this->SyncPlayState();
             }
@@ -162,18 +162,12 @@ public:
                 }
 
                 CSurf_OnStop(); // Stop playback
-                CSurf_OnPlayRateChange(m_origReaperPlaybackRate); // Restore playback rate
-                SetEditCurPos(m_origReaperCursorPosition, false, true); // Restore edit cursor position
-
-                // Reset preserve pitch
-                if (!m_origReaperPreservePitch)
-                {
-                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
-                }
             }
 
-            // Save last guitar pro control state
+            // Save last Puitar Pro state
             m_prevGuitarProControl = m_guitarProControl;
+            m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
+            m_prevGuitarProPlaybackRate = m_guitarProPlaybackRate;
         }
         catch(const std::exception& e)
         {
@@ -182,7 +176,7 @@ public:
     }
 
 private:
-    void ReadApplicationData()
+    void ReadGuitarProData()
     {
         DWORD processID = GetProcessID(L"GuitarPro.exe");
         HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, processID);
@@ -193,7 +187,6 @@ private:
         DWORD64 moduleBase = GetModuleBaseAddress(processID, L"GPCore.dll");
 
         // Read playback rate
-        m_reaperPlaybackRate = Master_GetPlayRate(nullptr);
         m_guitarProPlaybackRate = [&] {
         
             // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
@@ -212,8 +205,7 @@ private:
             return static_cast<double>(value);
         }();
 
-        // Read cursor position
-        m_reaperPlayPosition = GetPlayPosition();
+        // Read play position
         m_guitarProPlayPosition = [&] {
 
             // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
@@ -231,28 +223,27 @@ private:
 
             return static_cast<double>(value)/m_sampleRate;
         }();
-
-        m_reaperPlayState = GetPlayState();
         
         CloseHandle(hProcess);
     }
 
-    void SyncCursor()
+    void SyncPlayPosition()
     {
+        m_reaperPlayPosition = GetPlayPosition();
+
         // If cursor locations don't match, sync them
-        if (!CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 1)
-            || m_guitarProPlayPosition < m_prevGuitarProPlayPosition)
+        if (m_guitarProPlayPosition < m_prevGuitarProPlayPosition || !CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 1))
         {
             SetEditCurPos(m_guitarProPlayPosition, false, true);
         }
-
-        m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
     }
 
     void SyncPlaybackRate()
     {
+        m_reaperPlaybackRate = Master_GetPlayRate(nullptr);
+
         // If playback rates don't match, sync them
-        if (!CompareDouble(m_reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
+        if (m_guitarProPlaybackRate > 0.001 && !CompareDouble(m_reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
         {
             // If Preserve Pitch is OFF, enable it
             if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
@@ -269,6 +260,8 @@ private:
 
     void SyncPlayState()
     {
+        m_reaperPlayState = GetPlayState();
+
         // If guitar pro control is enabled, playstate is always 1 (playing)
         if (m_reaperPlayState != 1)
         {
@@ -284,19 +277,12 @@ private:
     bool m_prevGuitarProControl = false;
     bool m_guitarProControl = false;
 
-    // Preserve pitch seting
-    bool m_origReaperPreservePitch = false;
-    
-    // Cursor position
-    double m_origReaperCursorPosition = 0.0;
-
     // Play position
     double m_reaperPlayPosition = 0.0;
     double m_prevGuitarProPlayPosition = 0.0;
     double m_guitarProPlayPosition = 0.0;
 
     // Playback rate
-    double m_origReaperPlaybackRate = 1.0;
     double m_reaperPlaybackRate = 1.0;
     double m_prevGuitarProPlaybackRate = 0.0;
     double m_guitarProPlaybackRate = 0.0;
