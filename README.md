@@ -1,50 +1,58 @@
-# [Visual Studio Code](https://code.visualstudio.com/) + [CMake](https://cmake.org/) based cross-platform template for developing a [REAPER](https://www.reaper.fm/) [Plug-in Extension](https://www.reaper.fm/sdk/plugin/plugin.php)
-An entry level solution for setting up a REAPER Plug-in Extension development and build environment based on Visual Studio Code and CMake. Goal is to setup ReaScript IDE-like working environment for developing a simple scriptlike plugin, with little if any former background on C/C++ or REAPER Plug-in Extension development itself, and begin learning. Layman's documentation is included in the source files. Developed and tested on Windows 10, MacOS High Sierra 10.13.6 and Big Sur 11.1, and Ubuntu 20.04.1. Some familiarity with Visual Studio Code is beneficial. Instructions are based on clean/fresh installation.
-## Installation guide
-It's recommended to read all steps in advance before beginning installation.
-### Windows
+
+# REAPER Guitar Pro Sync
+Ever want to have a Guitar Pro tab play along with your REAPER project perfectly in sync? Now you can! **REAPER Guitar Pro Sync** is a plugin for REAPER that gives Guitar Pro 8 control over REAPER playback. This allows you to practice along with your REAPER projects with a Guitar Pro tab, using REAPER to control all audio. I created this plugin so that I could use VST guitar tones when I play along with Guitar Pro and use REAPER automation to control tone switches and parameter changes in sync with the Guitar Pro tab.
+## Supported Features
+This plugin allows Guitar Pro to control the following:
+* Play/pause state in REAPER
+* Cursor location (play cursor in REAPER will follow any actions taken in Guitar Pro)
+* Playback speed in REAPER
+# Installation/Usage
+* Grab the latest DLL file from the [releases](https://github.com/tnt-coders/reaper-guitar-pro-sync/releases) page and place it in your REAPER UserPlugins folder. (for example C:\Users\username\AppData\Roaming\REAPER\UserPlugins)
+* Restart REAPER
+* Look for "tnt: GuitarProSync (on/off)" in REAPER's "Actions" list.
+# Guitar Pro/REAPER Project Setup
+In order for this PLUGIN to function correctly it expects that the tempo map for your REAPER project matches the tempo map in Guitar Pro *EXACTLY*. If it is off even slightly things will not play back in sync.
+## Importing Guitar Pro Tempo Map Into REAPER
+* Sync the audio with the tab in Guitar Pro first, then add a "drum" track to the project and export the project as MIDI.
+* In REAPER you can drag and drop the MIDI file into your project on the first beat of the first measure. REAPER should prompt you asking if you want to take the tempo map from the MIDI file.
+* Then add the audio to the REAPER project and make sure you are using the same audio file you used for Guitar Pro and ensure it begins playback at the same location on the tempo map as it does in Guitar Pro.
+* Once this is done, you can delete the MIDI track from the project and remove the original MIDI file. It is no longer needed.
+## Supported Guitar Pro Versions
+This plugin is only guaranteed to work with Guitar Pro 8 (Version 8.1.3 - Build 121)
+* This may be expanded to other versions if Guitar Pro starts getting more updates, but this is currently the latest version.
+* The reason it is tied to this specific version is that Guitar Pro does not have any public API so this program functions by directly reading memory from the Guitar Pro application. If Guitar Pro is updated, memory addresses of information this plugin uses may change causing the plugin to break.
+# Compiling From Source
+It's recommended to read all steps in advance before beginning installation. Currently only Windows builds are supported.
+## Minimal Visual Studio Installation
 Install [Visual Studio Community with Develop C and C++ applications component](https://visualstudio.microsoft.com/vs/features/cplusplus/). Default installation includes MSVC compiler and CMake. Visual Studio installation can be trimmed down before installation or afterwards by cherry-picking only the necessary components from Visual Studio Installer > Individual Components section.
-#### Minimal Visual Studio installation
 * C++ CMake tools for Windows
-* Windows SDK (e.g. Windows 10 SDK (10.0.19041.0) for Windows 10, version 2004)
-### MacOS
-Perhaps the easiest way is to install [Homebrew](https://brew.sh/). This will also install Apple XCode Command Line Tools. After Homebrew is installed, install CMake with `brew install cmake`. Git can also be installed from Homebrew with `brew install git`.
-### Linux
-Mainstream Linux distributions usually include compiler and many of other necessary tools. On Ubuntu, command `sudo apt install build-essential cmake gdb git valgrind` installs all necessary tools.
-### All platforms
+* Windows SDK
+## Project Setup
 * Install [Visual Studio Code](https://code.visualstudio.com/) (VSCode).
 * Install [Git](https://git-scm.com/downloads), if not already installed. 
-* On Windows, open **Developer PowerShell (or Command Prompt) for VS**. On MacOS and Linux, use regular Terminal. Change directory to user preferred location for source repositories, or make one.
-* Get [reaper-sdk-vscode](https://github.com/tnt/reaper-sdk-vscode) files, preferably with `git clone --recursive https://github.com/tnt/reaper-sdk-vscode.git`, or by [creating a new repository from this template](https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template) and cloning it to local host. Currently templates don't include submodules, in this case [WDL](https://www.cockos.com/wdl/) library.
+* On Windows, open **Developer PowerShell (or Command Prompt) for VS**. Change directory to user preferred location for source repositories, or make one.
+* Get [reaper-guitar-pro-sync](https://github.com/tnt-coders/reaper-guitar-pro-sync) files with `git clone --recursive https://github.com/tnt-coders/reaper-guitar-pro-sync.git`.
 * Change directory to root of this repository.
 * Install [VSCode C/C++ Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools-extension-pack) with `code --verbose --install-extension ms-vscode.cpptools-extension-pack`. This might take a while.
-* If command `code` isn't found on Mac, see [this](https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line) and try again.
 * Open new VSCode workspace by issuing command `code .` (in root directory of this repository).
 * VSCode finishes installing the C/C++ Extensions pack. This is indicated in Status Bar.
 * Wait, until all dependencies have been downloaded and installed. This might take a while. 
 * Then quit VSCode and restart.
 * If VSCode notifies about Reload, then Reload.
 * If VSCode notifies to configure project 'plugin' with CMake Tools, choose Yes to configure. CMake Tools can also be set to allow always configure new C/C++ projects.
-* Select appropriate build kit for platform and architecture. Visual Studio for Windows, Clang for MacOS and GCC for Linux (e.g. Visual Studio Community Release 2019 - amd64 for modern Windows PC).
+* Select appropriate build kit for platform and architecture. Visual Studio for Windows (e.g. Visual Studio Community Release 2022 - amd64 for modern Windows PC).
 * VSCode should also notify about setting up IntelliSense for current workspace. Allow this.
 * If this did not happen, these can be set up by issuing VSCode Command Palette Commands (Ctrl/Cmd + Shift + P) `CMake: Configure` and `CMake: Select a Kit`, or from VSCode Status Bar. 
-## Template files
-### `CMakeLists.txt`
-* From VSCode workspace Explorer (Ctrl/Cmd + Shift + E) open up `CMakeLists.txt` file.
-* Configuration for plugin and building/compiling.
-### `src/main.cpp`
-* "The" REAPER plugin.
-### `src/guitar_pro_sync.cpp`
-* "The" actual source.
-## First steps
+## Build/Install
+* On Windows, VSCode needs to be started from Developer PowerShell (or Command Prompt) for VS.
 * By default, VSCode builds a debug version of the plugin it by running `CMake: Build` or keyboard shortcut `F7`.
 * Install plugin with VSCode command `CMake: Install`.
-* Start REAPER, and new plugin and it's Action ("tnt: guitar pro sync" by default) should show up in the Actions List.
-* Running the Action should result in 'hello, world' Console Message.
-* [VSCode docs](https://code.visualstudio.com/docs/languages/cpp#_tutorials) and [Microsoft C++ docs](https://docs.microsoft.com/en-us/cpp/cpp/) are a helpful resource. And, of course, [ReaScript, JSFX, REAPER Plug-in Extensions, Developer Forum](https://forum.cockos.com/forumdisplay.php?f=3).
+* Start REAPER, and new plugin and it's Action "tnt: GuitarProSync (on/off)" should show up in the Actions List.
+* Running the Action should give Guitar Pro the ability to control reaper when playing a song.\
+## Debugging
 * Choosing between debug and release builds can be done with `CMake: Select Variant`.
 * Debugging is launched with `F5`. First time, VSCode opens up default Launch Task configuration for debugging. Choose correct Environment and select Default Configuration. In `launch.json` file, edit the `"program":` value to match REAPER executable/binary installation path, e.g. `"program": "C:/Program Files/REAPER (x64)/reaper.exe"`.
+![image](https://i.imgur.com/ufG4jMf.png)
 * [VSCode debugger](https://code.visualstudio.com/docs/cpp/cpp-debug) allows step-by-step code execution, watching variables, etc.
-* On Windows, VSCode needs to be started from Developer PowerShell (or Command Prompt) for VS.
 ![image](https://i.imgur.com/N4LuyFV.gif)
 
