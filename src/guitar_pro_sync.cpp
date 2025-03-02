@@ -108,6 +108,17 @@ bool CompareDouble(const double val1, const double val2, const double epsilon)
     return fabs(val1 - val2) < epsilon;
 }
 
+bool PlayStatePausedOrStopped(const int reaperPlayState)
+{
+    // 0 is stopped, 1 is playing, 2 is paused, 4 is recording
+    if (reaperPlayState == 0 || reaperPlayState == 2)
+    {
+        return true;
+    }
+
+    return false;
+}
+
 // Class for the plugin
 class GuitarProSync final
 {
@@ -122,52 +133,35 @@ public:
             // Reads REAPER and Guitar Pro data
             this->ReadGuitarProData();
 
-            // If Preserve Pitch is OFF, enable it
-            if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0)
+            // Play state (1=playing, 2=paused, 4=recording)
+            const int reaperPlayState = GetPlayState();
+
+            // Ensure REAPER stays in sync while Guitar Pro is playing
+            if (m_guitarProPlayState)
             {
-                Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
-            }
- 
-            //TODO: find memory address that stores play state for better accuracy
-            // If guitar pro is playing then enable Guitar Pro control
-            m_guitarProControl = m_guitarProPlayPosition != m_prevGuitarProPlayPosition;
-
-            // If Guitar Pro control is enabled sync with Guitar Pro
-            if (m_guitarProControl)
-            {
-                if (!m_prevGuitarProControl)
-                {
-                    // Set REAPER state to match Guitar Pro (use previous cursor position to reduce latency)
-                    SetEditCurPos(m_prevGuitarProPlayPosition, false, true);
-
-                    //TODO: Find a better way to set initial playback rate (maybe read different memory from Guitar Pro)
-                    // Guitar pro lags in setting the play rate in memory, it will be synced as soon as the memory updates
-                    //CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
-                    
-                    //CSurf_OnPlay();
-                }
-
-                // Ensure REAPER stays in sync
                 this->SyncPlayPosition();
                 this->SyncPlaybackRate();
-                this->SyncPlayState();
             }
 
-            // If Guitar Pro control is NOT enabled, but it was previously, restore saved settings
-            else if (m_prevGuitarProControl)
+            // Allow Guitar Pro to move the REAPER cursor even when paused.
+            else if (!CompareDouble(m_prevGuitarProPlayPosition, m_guitarProPlayPosition, 0.001))
             {
-                // If Preserve Pitch is OFF, enable it
-                if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
-                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+                // But ONLY if REAPER is ALSO not playing
+                if (PlayStatePausedOrStopped(reaperPlayState))
+                {
+                    this->SyncPlayPosition();
                 }
-
-                CSurf_OnStop(); // Stop playback
             }
 
-            // Save last Puitar Pro state
-            m_prevGuitarProControl = m_guitarProControl;
+            // Ensure REAPER is playing if Guitar Pro is playing
+            this->SyncPlayState();
+
+            // Save previous REAPER state
+            m_prevReaperPlayState = reaperPlayState;
+
+            // Save previous Guitar Pro state
             m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
-            m_prevGuitarProPlaybackRate = m_guitarProPlaybackRate;
+            m_prevGuitarProPlayState = m_guitarProPlayState;
         }
         catch(const std::exception& e)
         {
@@ -223,16 +217,36 @@ private:
 
             return static_cast<double>(value)/m_sampleRate;
         }();
+
+        // Read play state
+        m_guitarProPlayState = [&] {
+            // Base Address from Cheat Engine (GPCore.dll + 0x00A24F80)
+            DWORD64 baseAddress = moduleBase + 0x00A24F80;
+
+            // Offset Chain (from Cheat Engine)
+            std::vector<DWORD64> offsets = { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4E0, 0x0, 0x20, 0x20, 0x0 };
+
+            // Resolve the pointer
+            DWORD64 finalAddress = ReadPointer(hProcess, baseAddress, offsets);
+
+            // Read the actual value at the final address
+            DWORD value;
+            ReadProcessMemory(hProcess, (LPCVOID)finalAddress, &value, sizeof(value), nullptr);
+
+            constexpr int FLAG_POSITION = 8;
+
+            return value & (1U << FLAG_POSITION);
+        }();
         
         CloseHandle(hProcess);
     }
 
     void SyncPlayPosition()
     {
-        m_reaperPlayPosition = GetPlayPosition();
+        const double reaperPlayPosition = GetPlayPosition();
 
         // If cursor locations don't match, sync them
-        if (m_guitarProPlayPosition < m_prevGuitarProPlayPosition || !CompareDouble(m_reaperPlayPosition, m_guitarProPlayPosition, 1))
+        if (m_guitarProPlayPosition < m_prevGuitarProPlayPosition || !CompareDouble(reaperPlayPosition, m_guitarProPlayPosition, 1))
         {
             SetEditCurPos(m_guitarProPlayPosition, false, true);
         }
@@ -240,32 +254,51 @@ private:
 
     void SyncPlaybackRate()
     {
-        m_reaperPlaybackRate = Master_GetPlayRate(nullptr);
+        const double reaperPlaybackRate = Master_GetPlayRate(nullptr);
 
-        // If playback rates don't match, sync them
-        if (m_guitarProPlaybackRate > 0.001 && !CompareDouble(m_reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
+        //TODO: The running playback rate memory location seems to take a bit to update when playing the song
+        // Because of this, the playback rate may register as 0 for a fraction of a second.
+        // Look for a better address in Cheat Engine so this can be done faster
+        if (m_guitarProPlaybackRate > 0.001)
         {
-            // If Preserve Pitch is OFF, enable it
-            if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
-                Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+            // If playback rates don't match, sync them
+            if (!CompareDouble(reaperPlaybackRate, m_guitarProPlaybackRate, 0.001))
+            {
+                // If Preserve Pitch is OFF, enable it
+                if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
+                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+                }
+    
+                // REAPER handles stretching much more efficiently if the song is paused
+                CSurf_OnPause();
+                CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
+                SetEditCurPos(m_guitarProPlayPosition, false, true);
+                CSurf_OnPlay();
             }
-
-            // REAPER handles stretching much more efficiently if the song is paused
-            CSurf_OnPause();
-            CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
-            SetEditCurPos(m_guitarProPlayPosition, false, true);
-            CSurf_OnPlay();
         }
     }
 
     void SyncPlayState()
     {
-        m_reaperPlayState = GetPlayState();
+        // Play state (1=playing, 2=paused, 4=recording)
+        const int reaperPlayState = GetPlayState();
 
-        // If guitar pro control is enabled, playstate is always 1 (playing)
-        if (m_reaperPlayState != 1)
+        if (m_guitarProPlayState)
         {
-            CSurf_OnPlay();
+            if (!m_prevGuitarProPlayState)
+            {
+                // Set REAPER state to match Guitar Pro (use previous cursor position to reduce latency)
+                SetEditCurPos(m_prevGuitarProPlayPosition, false, true);
+            }
+
+            if (reaperPlayState != 1)
+            {
+                CSurf_OnPlay();
+            }
+        }
+        else if (m_prevGuitarProPlayState && !PlayStatePausedOrStopped(reaperPlayState))
+        {
+            CSurf_OnStop();
         }
     }
 
@@ -273,22 +306,20 @@ private:
     // Seems to always be 44100 for guitar pro
     const int m_sampleRate = 44100;
 
-    // Guitar Pro control state
-    bool m_prevGuitarProControl = false;
-    bool m_guitarProControl = false;
+    // Previous REAPER state
+    int m_prevReaperPlayState = 2;
 
-    // Play position
-    double m_reaperPlayPosition = 0.0;
+    // Previous Guitar Pro state
     double m_prevGuitarProPlayPosition = 0.0;
+    bool m_prevGuitarProPlayState = false;
+
+    // Current Guitar Pro state
     double m_guitarProPlayPosition = 0.0;
-
-    // Playback rate
-    double m_reaperPlaybackRate = 1.0;
-    double m_prevGuitarProPlaybackRate = 0.0;
     double m_guitarProPlaybackRate = 0.0;
+    bool m_guitarProPlayState = false;
 
-    // Play state (1=playing, 2=paused, 4=recording)
-    int m_reaperPlayState = 2;
+    // Delay sync if REAPER is playing but Guitar Pro is paused
+    bool m_delaySync = false;
 };
 
 // some global non-const variables
