@@ -1,15 +1,17 @@
 
 # REAPER Guitar Pro Sync
-Ever want to have a Guitar Pro tab play along with your REAPER project perfectly in sync? Now you can! **REAPER Guitar Pro Sync** is a plugin for REAPER that gives Guitar Pro 8 control over REAPER playback. This allows you to practice along to your REAPER projects with a Guitar Pro tab, using REAPER to control all audio. I created this plugin so that I could use VST guitar tones when I play along with Guitar Pro and use REAPER automation to control tone switches and parameter changes in sync with the Guitar Pro tab.
+Ever want to have a Guitar Pro tab play along with your REAPER project perfectly in sync? Now you can!
+
+**REAPER Guitar Pro Sync** is a plugin for REAPER that gives Guitar Pro 8 control over REAPER playback. This allows you to practice along to your REAPER projects with a Guitar Pro tab, using REAPER to control all audio. I created this plugin so that I could use VST guitar tones when I play along with Guitar Pro and use REAPER automation to control tone switches and parameter changes in sync with the Guitar Pro tab.
 ## Supported Features
 This plugin allows Guitar Pro to control the following:
 * Play/pause state in REAPER
 * Cursor location (play cursor in REAPER will follow any actions taken in Guitar Pro)
 * Playback speed in REAPER
 # Installation/Usage
-* Grab the latest DLL file from the [releases](https://github.com/tnt-coders/reaper-guitar-pro-sync/releases) page and place it in your REAPER UserPlugins folder. (for example C:\Users\username\AppData\Roaming\REAPER\UserPlugins)
+* Grab the latest DLL file from the [releases](https://github.com/tnt-coders/reaper-guitar-pro-sync/releases) page and place it in your REAPER UserPlugins folder. (for example `C:\Users\username\AppData\Roaming\REAPER\UserPlugins`)
 * Restart REAPER
-* Look for "tnt: GuitarProSync (on/off)" in REAPER's "Actions" list.
+* Look for `tnt: GuitarProSync (on/off)` in REAPER's "Actions" list.
 # Guitar Pro/REAPER Project Setup
 In order for this PLUGIN to function correctly it expects that the tempo map for your REAPER project matches the tempo map in Guitar Pro *EXACTLY*. If it is off even slightly things will not play back in sync.
 ## Importing Guitar Pro Tempo Map Into REAPER
@@ -47,7 +49,7 @@ Install [Visual Studio Community with Develop C and C++ applications component](
 * On Windows, VSCode needs to be started from Developer PowerShell (or Command Prompt) for VS.
 * By default, VSCode builds a debug version of the plugin it by running `CMake: Build` or keyboard shortcut `F7`.
 * Install plugin with VSCode command `CMake: Install`.
-* Start REAPER, and new plugin and it's Action "tnt: GuitarProSync (on/off)" should show up in the Actions List.
+* Start REAPER, and new plugin and it's Action `tnt: GuitarProSync (on/off)` should show up in the Actions List.
 * Running the Action should give Guitar Pro the ability to control reaper when playing a song.\
 ## Debugging
 * Choosing between debug and release builds can be done with `CMake: Select Variant`.
