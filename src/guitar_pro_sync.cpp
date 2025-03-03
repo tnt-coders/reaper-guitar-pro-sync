@@ -18,7 +18,6 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 // register main function on timer
 // true or false
-#define API_ID MYAPI
 #define RUN_ON_TIMER true
 
 // confine guitar pro sync to namespace
@@ -128,54 +127,65 @@ public:
 
     void Run()
     {
-        try
+        // Read Guitar Pro data
+        if (!this->ReadGuitarProData())
         {
-            // Reads REAPER and Guitar Pro data
-            this->ReadGuitarProData();
+            // Check readError flag to prevent spamming the error message repeatedly
+            if (!m_readError)
+            {
+                ShowConsoleMsg("GuitarProSync: Failed to attach to Guitar Pro process. Check that Guitar Pro is running and that you are using a supported version.\n");
+                m_readError = true;
+            }
+        }
+        else
+        {
+            if (m_readError)
+            {
+                ShowConsoleMsg("GuitarProSync: Guitar Pro process found!\n");
+            }
 
-            // Play state (1=playing, 2=paused, 4=recording)
-            const int reaperPlayState = GetPlayState();
+            // Read was successful, clear the error flag
+            m_readError = false;
+        }
 
-            // Ensure REAPER stays in sync while Guitar Pro is playing
-            if (m_guitarProPlayState)
+        // Play state (1=playing, 2=paused, 4=recording)
+        const int reaperPlayState = GetPlayState();
+
+        // Ensure REAPER stays in sync while Guitar Pro is playing
+        if (m_guitarProPlayState)
+        {
+            this->SyncPlayPosition();
+            this->SyncPlaybackRate();
+        }
+
+        // Allow Guitar Pro to move the REAPER cursor even when paused.
+        else if (!CompareDouble(m_prevGuitarProPlayPosition, m_guitarProPlayPosition, 0.001))
+        {
+            // But ONLY if REAPER is ALSO not playing
+            if (PlayStatePausedOrStopped(reaperPlayState))
             {
                 this->SyncPlayPosition();
-                this->SyncPlaybackRate();
             }
-
-            // Allow Guitar Pro to move the REAPER cursor even when paused.
-            else if (!CompareDouble(m_prevGuitarProPlayPosition, m_guitarProPlayPosition, 0.001))
-            {
-                // But ONLY if REAPER is ALSO not playing
-                if (PlayStatePausedOrStopped(reaperPlayState))
-                {
-                    this->SyncPlayPosition();
-                }
-            }
-
-            // Ensure REAPER is playing if Guitar Pro is playing
-            this->SyncPlayState();
-
-            // Save previous REAPER state
-            m_prevReaperPlayState = reaperPlayState;
-
-            // Save previous Guitar Pro state
-            m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
-            m_prevGuitarProPlayState = m_guitarProPlayState;
         }
-        catch(const std::exception& e)
-        {
-            ShowConsoleMsg(e.what());
-        }
+
+        // Ensure REAPER is playing if Guitar Pro is playing
+        this->SyncPlayState();
+
+        // Save previous REAPER state
+        m_prevReaperPlayState = reaperPlayState;
+
+        // Save previous Guitar Pro state
+        m_prevGuitarProPlayPosition = m_guitarProPlayPosition;
+        m_prevGuitarProPlayState = m_guitarProPlayState;
     }
 
 private:
-    void ReadGuitarProData()
+    bool ReadGuitarProData()
     {
         DWORD processID = GetProcessID(L"GuitarPro.exe");
         HANDLE hProcess = OpenProcess(PROCESS_VM_READ, FALSE, processID);
         if (!hProcess) {
-            throw std::exception("Failed to open GuitarPro.exe\n");
+            return false;
         }
 
         DWORD64 moduleBase = GetModuleBaseAddress(processID, L"GPCore.dll");
@@ -239,6 +249,8 @@ private:
         }();
         
         CloseHandle(hProcess);
+
+        return true;
     }
 
     void SyncPlayPosition()
@@ -320,6 +332,9 @@ private:
 
     // Delay sync if REAPER is playing but Guitar Pro is paused
     bool m_delaySync = false;
+
+    // Tracks if a read error is currently occurring
+    bool m_readError = false;
 };
 
 // some global non-const variables
@@ -399,78 +414,6 @@ bool OnAction(KbdSectionInfo* sec, int command, int val, int valhw, int relmode,
     return true;
 }
 
-// definition string for example API function
-auto reascript_api_function_example_defstring =
-    "int" // return type
-    "\0"  // delimiter ('separator')
-    // input parameter types
-    "int,bool,double,const char*,int,const int*,double*,char*,int"
-    "\0"
-    // input parameter names
-    "whole_number,boolean_value,decimal_number,string_of_text,"
-    "string_of_text_sz,input_parameterInOptional,"
-    "return_valueOutOptional,"
-    "return_stringOutOptional,return_stringOutsz"
-    "\0"
-    "help text for myfunction\n"
-    "If optional input parameter is provided, produces optional return "
-    "value.\n"
-    "If boolean is true, copies input string to optional output string.\n";
-
-// example api function
-int ReaScriptAPIFunctionExample(
-    int whole_number,
-    bool boolean_value,
-    double decimal_number,
-    const char* string_of_text,
-    int string_of_text_sz,
-    const int* input_parameterInOptional,
-    double* return_valueOutOptional,
-    char* return_stringOutOptional,
-    int return_string_sz
-)
-{
-    // if optional integer is provided
-    if (input_parameterInOptional != nullptr)
-    {
-        // assign value to deferenced output pointer
-        *return_valueOutOptional =
-            // by making this awesome calculation
-            (*input_parameterInOptional + whole_number + decimal_number);
-    }
-
-    // lets conditionally produce optional output string
-    if (boolean_value)
-    {
-        // copy string_of_text to return_stringOutOptional
-        // *_sz is length/size of zero terminated string (C-style char array)
-        memcpy(return_stringOutOptional, string_of_text, min(return_string_sz, string_of_text_sz) * sizeof(char));
-    }
-    return whole_number * whole_number;
-}
-
-auto defstring_GetVersion =
-    "void" // return type
-    "\0"   // delimiter ('separator')
-    // input parameter types
-    "int*,int*,int*,int*,char*,int"
-    "\0"
-    // input parameter names
-    "majorOut,minorOut,patchOut,tweakOut,commitOut,commitOut_sz"
-    "\0"
-    "returns version numbers of guitar pro sync\n";
-
-void GetVersion(int* majorOut, int* minorOut, int* patchOut, int* tweakOut, char* commitOut, int commitOut_sz)
-{
-    *majorOut = PROJECT_VERSION_MAJOR;
-    *minorOut = PROJECT_VERSION_MINOR;
-    *patchOut = PROJECT_VERSION_PATCH;
-    *tweakOut = PROJECT_VERSION_TWEAK;
-    const char* commit = STRINGIZE(PROJECT_VERSION_COMMIT);
-    std::copy(commit, commit + min(commitOut_sz - 1, (int)strlen(commit)), commitOut);
-    commitOut[min(commitOut_sz - 1, (int)strlen(commit))] = '\0'; // Ensure null termination
-}
-
 // when guitar pro sync gets loaded
 // function to register guitar pro syncs 'stuff' with REAPER
 void Register()
@@ -484,18 +427,6 @@ void Register()
 
     // register run action/command
     plugin_register("hookcommand2", (void*)OnAction);
-
-    // register the API function example
-    // function, definition string and function 'signature'
-    plugin_register("API_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)ReaScriptAPIFunctionExample);
-    plugin_register(
-        "APIdef_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)reascript_api_function_example_defstring
-    );
-    plugin_register("APIvararg_" STRINGIZE(API_ID)"_ReaScriptAPIFunctionExample", (void*)&InvokeReaScriptAPI<&ReaScriptAPIFunctionExample>);
-
-    plugin_register("API_" STRINGIZE(API_ID)"_GetVersion", (void*)GetVersion);
-    plugin_register("APIdef_" STRINGIZE(API_ID)"_GetVersion", (void*)defstring_GetVersion);
-    plugin_register("APIvararg_" STRINGIZE(API_ID)"_GetVersion", (void*)&InvokeReaScriptAPI<&GetVersion>);
 }
 
 // shutdown, time to exit
