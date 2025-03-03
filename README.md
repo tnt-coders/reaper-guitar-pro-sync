@@ -2,6 +2,7 @@
 # REAPER Guitar Pro Sync
 Ever want to have a Guitar Pro tab play along with your REAPER project perfectly in sync? Now you can!
 
+**Demo Video:**
 [![Demo Video](https://i.imgur.com/OgXCUdy.jpeg)](https://youtu.be/CZxBhGkcF-s)
 
 **REAPER Guitar Pro Sync** is a plugin for REAPER that gives Guitar Pro 8 control over REAPER playback. This allows you to practice along to your REAPER projects with a Guitar Pro tab, using REAPER to control all audio. I created this plugin so that I could use VST guitar tones when I play along with Guitar Pro and use REAPER automation to control tone switches and parameter changes in sync with the Guitar Pro tab.
@@ -56,8 +57,9 @@ Install [Visual Studio Community with Develop C and C++ applications component](
 ## Debugging
 * Choosing between debug and release builds can be done with `CMake: Select Variant`.
 * Debugging is launched with `F5`. First time, VSCode opens up default Launch Task configuration for debugging. Choose correct Environment and select Default Configuration. In `launch.json` file, edit the `"program":` value to match REAPER executable/binary installation path, e.g. `"program": "C:/Program Files/REAPER (x64)/reaper.exe"`.
-* Example `launch.json`:
+* Example `launch.json`:<br>
 ![image](https://i.imgur.com/ufG4jMf.png)
-* [VSCode debugger](https://code.visualstudio.com/docs/cpp/cpp-debug) allows step-by-step code execution, watching variables, etc.
+
+* [VSCode debugger](https://code.visualstudio.com/docs/cpp/cpp-debug) allows step-by-step code execution, watching variables, etc.<br>
 ![image](https://i.imgur.com/N4LuyFV.gif)
 
