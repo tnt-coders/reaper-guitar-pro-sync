@@ -2,12 +2,14 @@
 # REAPER Guitar Pro Sync
 Ever want to have a Guitar Pro tab play along with your REAPER project perfectly in sync? Now you can!
 
+[![Demo Video](https://i.imgur.com/OgXCUdy.jpeg)](https://youtu.be/CZxBhGkcF-s)
+
 **REAPER Guitar Pro Sync** is a plugin for REAPER that gives Guitar Pro 8 control over REAPER playback. This allows you to practice along to your REAPER projects with a Guitar Pro tab, using REAPER to control all audio. I created this plugin so that I could use VST guitar tones when I play along with Guitar Pro and use REAPER automation to control tone switches and parameter changes in sync with the Guitar Pro tab.
 ## Supported Features
 This plugin allows Guitar Pro to control the following:
 * Play/pause state in REAPER
-* Cursor location (play cursor in REAPER will follow any actions taken in Guitar Pro)
-* Playback speed in REAPER
+* Cursor location (Play cursor in REAPER will follow actions taken in Guitar Pro including looping and jumping from one location to another)
+* Playback speed in REAPER (While Guitar Pro is playing the playback speed in REAPER will be set to match the current speed in Guitar Pro)
 # Installation/Usage
 * Grab the latest DLL file from the [releases](https://github.com/tnt-coders/reaper-guitar-pro-sync/releases) page and place it in your REAPER UserPlugins folder. (for example `C:\Users\username\AppData\Roaming\REAPER\UserPlugins`)
 * Restart REAPER
