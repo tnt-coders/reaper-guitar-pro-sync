@@ -21,8 +21,7 @@
 #define RUN_ON_TIMER true
 
 // confine guitar pro sync to namespace
-namespace PROJECT_NAME
-{
+namespace PROJECT_NAME {
 
 constexpr int PRESERVE_PITCH_COMMAND = 40671;
 

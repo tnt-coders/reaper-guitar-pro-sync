@@ -14,12 +14,10 @@ extern "C"
         PROJECT_NAME::hInstance = hInstance;
         if (rec != nullptr && REAPERAPI_LoadAPI(rec->GetFunc) == 0)
         {
-            // check that our plugin hasn't been already loaded
-            if (rec->GetFunc("ReaScriptAPIFunctionExample"))
-                return 0;
             PROJECT_NAME::Register();
             return 1;
         }
+        
         // quit
         PROJECT_NAME::Unregister();
         return 0;
