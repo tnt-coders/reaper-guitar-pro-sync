@@ -259,6 +259,17 @@ private:
         // If cursor locations don't match, sync them
         if (m_guitarProPlayPosition < m_prevGuitarProPlayPosition || !CompareDouble(reaperPlayPosition, m_guitarProPlayPosition, 1))
         {
+            //TODO: REMOVE
+            // This message is for debugging to try and resolve an issue where the audio is skipping
+            if (!CompareDouble(reaperPlayPosition, m_guitarProPlayPosition, 1))
+            {
+                double diff = m_guitarProPlayPosition - m_prevGuitarProPlayPosition;
+                std::string error = "CURSOR JUMPED!\nGP Pos: " + std::to_string(m_guitarProPlayPosition)
+                + "\nPrev GP Pos: " + std::to_string(m_prevGuitarProPlayPosition)
+                + "\nREAPER Pos: " + std::to_string(reaperPlayPosition) + "\n";
+                ShowConsoleMsg(error.c_str());
+            }
+
             SetEditCurPos(m_guitarProPlayPosition, false, true);
         }
     }
