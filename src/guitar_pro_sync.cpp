@@ -351,10 +351,60 @@ GuitarProSync guitarProSync;
 // defined here
 REAPER_PLUGIN_HINSTANCE hInstance{nullptr}; // used for dialogs, if any
 
+HWND my_hwnd = nullptr;
+
+// Window Procedure (handles messages like WM_CLOSE)
+LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_CLOSE:
+            ShowWindow(hwnd, SW_HIDE);  // Hide instead of destroying
+            return 0;
+        case WM_DESTROY:
+            my_hwnd = nullptr;
+            return 0;
+    }
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+// Register custom window class
+void RegisterMyWindowClass() {
+    WNDCLASS wc = {};
+    wc.lpfnWndProc = MyWindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = L"MyPluginClass";
+
+    RegisterClass(&wc);
+}
+
+// Create a dockable window
+void OpenDockableWindow() {
+    if (!my_hwnd) {
+        RegisterMyWindowClass();  // Ensure the class is registered
+
+        my_hwnd = CreateWindowEx(
+            0, L"MyPluginClass", L"My Plugin",
+            WS_OVERLAPPEDWINDOW | WS_VISIBLE,  // Use a visible style
+            CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
+            nullptr, nullptr, hInstance, nullptr
+        );
+
+        if (my_hwnd) {
+            ShowConsoleMsg("Window created?\n");
+            DockWindowAdd(my_hwnd, "My Plugin", 0, true);  // Dock into Reaper
+            DockWindowActivate(my_hwnd);
+        } else {
+            ShowConsoleMsg("Failed to create window!\n");
+        }
+    } else {
+        ShowWindow(my_hwnd, SW_SHOW);
+    }
+}
+
 // the main function of guitar pro sync
 // gets called via callback or timer
 void MainFunctionOfGuitarProSync()
 {
+    OpenDockableWindow();
     guitarProSync.Run();
 }
 
