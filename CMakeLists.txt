@@ -123,6 +123,7 @@ endif()
 
 add_library(${PROJECT_NAME} SHARED)
 add_subdirectory(src)
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_link_libraries(${PROJECT_NAME} PRIVATE reaper-sdk)
 
 configure_file(
@@ -181,7 +182,7 @@ else()
     )
 endif()
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 17)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
 
 if(WIN32)
     target_compile_options(
