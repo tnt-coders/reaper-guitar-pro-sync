@@ -5,8 +5,11 @@
 
 #include <memory>
 #include <string>
+#include <stdexcept>
 
 namespace tnt {
+
+constexpr int PRESERVE_PITCH_COMMAND = 40671;
 
 struct Reaper::Impl final
 {
@@ -37,7 +40,20 @@ struct Reaper::Impl final
         case 4:
             return ReaperPlayState::RECORDING;
         default:
-            return ReaperPlayState::UNKNOWN;
+            throw std::runtime_error("GetPlayState: REAPER is in an invalid play state!");
+        }
+    }
+
+    // int GetToggleCommandState(int command_id)
+    bool GetToggleCommandState(const ReaperToggleCommand& command) const
+    {
+        switch (command)
+        {
+        case ReaperToggleCommand::PRESERVE_PITCH:
+            return ::GetToggleCommandState(PRESERVE_PITCH_COMMAND) != 0;
+        default:
+            // This should never happen
+            throw std::runtime_error("GetToggleCommandState: Command not found!");
         }
     }
 
@@ -47,10 +63,56 @@ struct Reaper::Impl final
         ::SetEditCurPos(time, move_view, seek_play);
     }
 
+    // void CSurf_OnPlayRateChange(double playrate)
+    void SetPlayRate(const double play_rate) const
+    {
+        ::CSurf_OnPlayRateChange(play_rate);
+    }
+
+    // void CSurf_OnStop()
+    // void CSurf_OnPlay()
+    // void CSurf_OnPause()
+    // void CSurf_OnRecord()
+    void SetPlayState(const ReaperPlayState& play_state) const
+    {
+        switch (play_state)
+        {
+        case ReaperPlayState::STOPPED:
+            ::CSurf_OnStop();
+            break;
+        case ReaperPlayState::PLAYING:
+            ::CSurf_OnPlay();
+            break;
+        case ReaperPlayState::PAUSED:
+            ::CSurf_OnPause();
+            break;
+        case ReaperPlayState::RECORDING:
+            ::CSurf_OnRecord();
+            break;
+        default:
+            // This should never happen
+            throw std::runtime_error("SetPlayState: Invalid play state!");
+        }
+    }
+
     // void ShowConsoleMsg(const char* msg)
     void ShowConsoleMessage(const std::string& message) const
     {
         ::ShowConsoleMsg(message.c_str());
+    }
+
+    // void Main_OnCommand(int command, int flag)
+    void ToggleCommand(const ReaperToggleCommand& command) const
+    {
+        switch (command)
+        {
+        case ReaperToggleCommand::PRESERVE_PITCH:
+            ::Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
+            break;
+        default:
+            // This should never happen
+            throw std::runtime_error("ToggleCommand: Command not found!");
+        }
     }
 };
 
@@ -75,14 +137,34 @@ ReaperPlayState Reaper::GetPlayState() const
     return m_impl->GetPlayState();
 }
 
+bool Reaper::GetToggleCommandState(const ReaperToggleCommand& command) const
+{
+    return m_impl->GetToggleCommandState(command);
+}
+
 void Reaper::SetEditCursorPosition(const double time, const bool move_view, const bool seek_play) const
 {
     m_impl->SetEditCursorPosition(time, move_view, seek_play);
 }
 
+void Reaper::SetPlayRate(const double play_rate) const
+{
+    m_impl->SetPlayRate(play_rate);
+}
+
+void Reaper::SetPlayState(const ReaperPlayState& play_state) const
+{
+    m_impl->SetPlayState(play_state);
+}
+
 void Reaper::ShowConsoleMessage(const std::string& message) const
 {
     m_impl->ShowConsoleMessage(message);    
+}
+
+void Reaper::ToggleCommand(const ReaperToggleCommand& command) const
+{
+    m_impl->ToggleCommand(command);
 }
 
 }

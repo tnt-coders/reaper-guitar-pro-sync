@@ -8,13 +8,7 @@
 
 namespace tnt {
 
-// Returns true if doubles are within epsilon
-bool CompareDouble(const double val1, const double val2, const double epsilon)
-{
-    return fabs(val1 - val2) < epsilon;
-}
-
-struct ApplicationState final
+struct GuitarProState final
 {
     double play_position = 0.0;
     double play_rate = 1.0;
@@ -30,9 +24,8 @@ struct Plugin::Impl final {
     {
         try
         {
-            // Update current Guitar Pro and REAPER states
-            this->UpdateGuitarProState();
-            this->UpdateReaperState();
+            // Read current Guitar Pro and REAPER states
+            this->ReadGuitarProState();
         }
         catch (const std::runtime_error& error)
         {
@@ -53,14 +46,14 @@ struct Plugin::Impl final {
         if (m_guitar_pro_state.play_state)
         {
             this->SyncPlayPosition();
-            this->SyncPlaybackRate();
+            this->SyncPlayRate();
         }
 
         // Allow Guitar Pro to move the REAPER cursor even when paused.
         else if (!this->GuitarProCursorMoved())
         {
             // But ONLY if REAPER is ALSO not playing
-            if (!m_reaper_state.play_state)
+            if (this->ReaperStoppedOrPaused())
             {
                 this->SyncPlayPosition();
             }
@@ -69,13 +62,12 @@ struct Plugin::Impl final {
         // Ensure REAPER is playing if Guitar Pro is playing
         this->SyncPlayState();
 
-        // Save previous Guitar Pro and REAPER states
+        // Save previous Guitar Pro state
         m_prev_guitar_pro_state = m_guitar_pro_state;
-        m_prev_reaper_state = m_reaper_state;
     }
 
 private:
-    void UpdateGuitarProState()
+    void ReadGuitarProState()
     {
         m_guitar_pro.ReadProcessMemory();
 
@@ -84,38 +76,16 @@ private:
         m_guitar_pro_state.play_state = m_guitar_pro.GetPlayState();
     }
 
-    void UpdateReaperState()
-    {
-        m_reaper_state.play_position = m_reaper.GetPlayPosition();
-        m_reaper_state.play_rate = m_reaper.GetPlayRate();
-
-        const auto play_state = m_reaper.GetPlayState();
-
-        m_reaper_state.play_state = [&] {
-            switch(play_state)
-            {
-            case ReaperPlayState::STOPPED:
-            case ReaperPlayState::PAUSED:
-                return false;
-            case ReaperPlayState::PLAYING:
-            case ReaperPlayState::RECORDING:
-                return true;
-            case ReaperPlayState::UNKNOWN:
-            default:
-                throw std::runtime_error("REAPER pause/play state is in an unknown state.\n");
-            }
-        }();
-    }
-
     void SyncPlayPosition()
     {
-        if (this->GuitarProCursorMovedBack() || this->CursorDesync())
+        if (this->GuitarProCursorMovedBack() ||
+            this->Desync(m_reaper.GetPlayPosition(), m_guitar_pro_state.play_position, 1))
         {
             m_reaper.SetEditCursorPosition(m_guitar_pro_state.play_position, false, true);
         }
     }
 
-    void SyncPlaybackRate()
+    void SyncPlayRate()
     {
         // TODO: The running playback rate memory location seems to take a bit to update when playing the song
         // Because of this, the playback rate may register as 0 for a fraction of a second.
@@ -123,53 +93,45 @@ private:
         if (m_guitar_pro_state.play_rate > 0.001)
         {
             // If playback rates don't match, sync them
-            if (this->PlayRateDesync())
+            if (this->Desync(m_reaper.GetPlayRate(), m_guitar_pro_state.play_rate, 0.001))
             {
-                ////////////////////////////////////
-                // TODO: CONTINUE EDITING FROM HERE
-                ////////////////////////////////////
+                // Always ensure preserve pitch is set before stretching
+                this->EnablePreservePitch();
 
-                // If Preserve Pitch is OFF, enable it
-                if (GetToggleCommandState(PRESERVE_PITCH_COMMAND) == 0) {
-                    Main_OnCommand(PRESERVE_PITCH_COMMAND, 0);
-                }
-    
                 // REAPER handles stretching much more efficiently if the song is paused
-                CSurf_OnPause();
-                CSurf_OnPlayRateChange(m_guitarProPlaybackRate);
-                SetEditCurPos(m_guitarProPlayPosition, false, true);
-                CSurf_OnPlay();
+                m_reaper.SetPlayState(ReaperPlayState::PAUSED);
+                m_reaper.SetPlayRate(m_guitar_pro_state.play_rate);
             }
         }
     }
 
     void SyncPlayState()
     {
-        // Play state (1=playing, 2=paused, 4=recording)
-        const int reaperPlayState = GetPlayState();
-
-        if (m_guitarProPlayState)
+        if (m_guitar_pro_state.play_state)
         {
-            if (!m_prevGuitarProPlayState)
+            if (this->ReaperStoppedOrPaused())
             {
-                // Set REAPER state to match Guitar Pro (use previous cursor position to reduce latency)
-                SetEditCurPos(m_prev_guitar_pro_play_position, false, true);
-            }
-
-            if (reaperPlayState != 1)
-            {
-                CSurf_OnPlay();
+                m_reaper.SetEditCursorPosition(m_guitar_pro_state.play_position, false, true);
+                m_reaper.SetPlayState(ReaperPlayState::PLAYING);
             }
         }
-        else if (m_prevGuitarProPlayState && !PlayStatePausedOrStopped(reaperPlayState))
+
+        // Only stop playback if Guitar Pro was previously playing
+        else if (m_prev_guitar_pro_state.play_state && !this->ReaperStoppedOrPaused())
         {
-            CSurf_OnStop();
+            m_reaper.SetPlayState(ReaperPlayState::PAUSED);
         }
+    }
+
+    // Returns true if the two values have drifted further than epsilon out of sync
+    bool Desync(const double val1, const double val2, const double epsilon) const
+    {
+        return !(fabs(val1 - val2) < epsilon);
     }
 
     bool GuitarProCursorMoved() const
     {
-        return CompareDouble(m_prev_guitar_pro_state.play_position, m_guitar_pro_state.play_position, 0.001);
+        return this->Desync(m_prev_guitar_pro_state.play_position, m_guitar_pro_state.play_position, 0.001);
     }
 
     bool GuitarProCursorMovedBack() const
@@ -177,26 +139,36 @@ private:
         return GuitarProCursorMoved() && m_guitar_pro_state.play_position < m_prev_guitar_pro_state.play_position;
     }
 
-    bool CursorDesync() const
+    bool ReaperStoppedOrPaused() const
     {
-        // TODO: try to figure out how to set the threshold less than 1 second
-        // Setting it smaller seems to cause issues but allows a desync of up to 1 second which is not ideal
-        return !CompareDouble(m_guitar_pro_state.play_position, m_reaper_state.play_position, 1);
+        switch (m_reaper.GetPlayState())
+        {
+        case ReaperPlayState::STOPPED:
+        case ReaperPlayState::PAUSED:
+            return true;
+        case ReaperPlayState::PLAYING:
+        case ReaperPlayState::RECORDING:
+            return false;
+        default:
+            // This should never happen
+            throw std::runtime_error("REAPER is in an invalid play state!");
+        }
     }
 
-    bool PlayRateDesync() const
+    void EnablePreservePitch() const
     {
-        return !CompareDouble(m_reaper_state.play_rate, m_guitar_pro_state.play_rate, 0.001)
+        // If Preserve Pitch is OFF, enable it
+        if (!m_reaper.GetToggleCommandState(ReaperToggleCommand::PRESERVE_PITCH)) {
+            m_reaper.ToggleCommand(ReaperToggleCommand::PRESERVE_PITCH);
+        }
     }
 
     PluginState& m_plugin_state;
     GuitarPro m_guitar_pro;
     Reaper m_reaper;
 
-    ApplicationState m_guitar_pro_state;
-    ApplicationState m_reaper_state;
-    ApplicationState m_prev_guitar_pro_state;
-    ApplicationState m_prev_reaper_state;
+    GuitarProState m_prev_guitar_pro_state;
+    GuitarProState m_guitar_pro_state;
 
     // Keeps track if the last read resulted in an error
     bool m_read_error = false;
