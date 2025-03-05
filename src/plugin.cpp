@@ -50,7 +50,7 @@ struct Plugin::Impl final {
         }
 
         // Allow Guitar Pro to move the REAPER cursor even when paused.
-        else if (!this->GuitarProCursorMoved())
+        else if (this->GuitarProCursorMoved())
         {
             // But ONLY if REAPER is ALSO not playing
             if (this->ReaperStoppedOrPaused())
@@ -111,7 +111,8 @@ private:
         {
             if (this->ReaperStoppedOrPaused())
             {
-                m_reaper.SetEditCursorPosition(m_guitar_pro_state.play_position, false, true);
+                // Use previous Guitar Pro play state to reduce latency on startup
+                m_reaper.SetEditCursorPosition(m_prev_guitar_pro_state.play_position, false, true);
                 m_reaper.SetPlayState(ReaperPlayState::PLAYING);
             }
         }
