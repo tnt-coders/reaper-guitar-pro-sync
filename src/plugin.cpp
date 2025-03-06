@@ -113,7 +113,7 @@ private:
         // Only stop playback if Guitar Pro was previously playing
         else if (m_prev_guitar_pro_state.play_state && !this->ReaperStoppedOrPaused())
         {
-            m_reaper.SetPlayState(ReaperPlayState::PAUSED);
+            m_reaper.SetPlayState(ReaperPlayState::STOPPED);
         }
     }
 
