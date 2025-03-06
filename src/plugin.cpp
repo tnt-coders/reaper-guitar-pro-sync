@@ -55,10 +55,9 @@ private:
     void SyncTimeSelection()
     {
         if (this->Desync(m_guitar_pro_state.loop_start_position, m_prev_guitar_pro_state.loop_start_position, 0.001) ||
-            this->Desync(m_guitar_pro_state.loop_end_position, m_prev_guitar_pro_state.loop_end_position, 0.001) ||
-            m_guitar_pro_state.loop_state != m_prev_guitar_pro_state.loop_state)
+            this->Desync(m_guitar_pro_state.loop_end_position, m_prev_guitar_pro_state.loop_end_position, 0.001))
         {
-            m_reaper.SetTimeSelection(m_guitar_pro_state.loop_start_position, m_guitar_pro_state.loop_end_position, m_guitar_pro_state.loop_state);
+            m_reaper.SetTimeSelection(m_guitar_pro_state.loop_start_position, m_guitar_pro_state.loop_end_position, true);
         }
     }
 
@@ -93,10 +92,12 @@ private:
 
     void SyncPlayState()
     {
+        // TODO: Play state sync is still broken on REPEAT of a loop with a count-in
         if (m_guitar_pro_state.play_state)
         {
             // Do nothing if Guitar Pro is currently counting in and the cursor is not moving
-            if (m_guitar_pro_state.count_in_state && !this->GuitarProCursorMoved())
+            if (m_guitar_pro_state.count_in_state && !this->GuitarProCursorMoved() ||
+                (m_prev_guitar_pro_state.play_position < 0.001 && m_guitar_pro_state.loop_start_position > 0.001)) // Fixes count-in not working on loop start
             {
                 return;
             }

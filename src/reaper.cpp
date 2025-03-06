@@ -97,10 +97,10 @@ struct Reaper::Impl final
     }
 
     // void GetSet_LoopTimeRange(bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek)
-    void SetTimeSelection(const double start_time, const double end_time, const bool seek_play, const bool loop) const
+    void SetTimeSelection(const double start_time, const double end_time, const bool seek_play) const
     {
         // Const cast is used here because we are explicitly setting the value, not getting it.
-        ::GetSet_LoopTimeRange(true, loop, const_cast<double*>(&start_time), const_cast<double*>(&end_time), seek_play);
+        ::GetSet_LoopTimeRange(true, false, const_cast<double*>(&start_time), const_cast<double*>(&end_time), seek_play);
     }
 
     // void ShowConsoleMsg(const char* msg)
@@ -165,9 +165,9 @@ void Reaper::SetPlayState(const ReaperPlayState& play_state) const
     m_impl->SetPlayState(play_state);
 }
 
-void Reaper::SetTimeSelection(const double start_time, const double end_time, const bool seek_play, const bool loop) const
+void Reaper::SetTimeSelection(const double start_time, const double end_time, const bool seek_play) const
 {
-    m_impl->SetTimeSelection(start_time, end_time, seek_play, loop);
+    m_impl->SetTimeSelection(start_time, end_time, seek_play);
 }
 
 void Reaper::ShowConsoleMessage(const std::string& message) const

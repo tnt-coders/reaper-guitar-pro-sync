@@ -23,9 +23,6 @@ struct GuitarProState final
 
     // Count in state
     bool count_in_state = false;
-
-    // Loop state
-    bool loop_state = false;
 };    
 
 // Basic API to extract data from Guitar Pro
