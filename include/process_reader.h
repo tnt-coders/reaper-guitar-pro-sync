@@ -21,18 +21,18 @@ public:
         m_process_id = this->GetProcessID(m_process_name.c_str());
         if (!m_process_id)
         {
-            throw std::runtime_error(std::format("Failed to get process ID for process '{}'.", WStringToString(m_process_name)));
+            throw std::runtime_error(std::format("Failed to get process ID for process '{}'.\n", WStringToString(m_process_name)));
         }
 
         m_module_base_address = this->GetModuleBaseAddress(m_module_name.c_str());
         if (!m_module_base_address)
         {
-            throw std::runtime_error(std::format("Failed to get module base address for module '{}'.", WStringToString(m_module_name)));
+            throw std::runtime_error(std::format("Failed to get module base address for module '{}'.\n", WStringToString(m_module_name)));
         }
 
         m_process_handle = OpenProcess(PROCESS_VM_READ, FALSE, m_process_id);
         if (!m_process_handle) {
-            throw std::runtime_error(std::format("Failed to open process '{}'.", WStringToString(m_process_name)));
+            throw std::runtime_error(std::format("Failed to open process '{}'.\n", WStringToString(m_process_name)));
         }
     }
 
@@ -69,7 +69,7 @@ public:
                 }
             }();
 
-            throw std::runtime_error(std::format("Failed to read memory at address {} for process '{}': {}", address, WStringToString(m_process_name), error_message));
+            throw std::runtime_error(std::format("Failed to read memory at address {} for process '{}': {}\n", address, WStringToString(m_process_name), error_message));
         }
 
         return value;

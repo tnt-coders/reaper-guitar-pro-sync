@@ -30,11 +30,13 @@ struct Plugin::Impl final {
                 m_reaper.ShowConsoleMessage(error.what());
                 m_last_error = error.what();
             }
+
+            return;
         }
 
         if (!m_last_error.empty())
         {
-            m_reaper.ShowConsoleMessage("Successfully connected to Guitar Pro process.");
+            m_reaper.ShowConsoleMessage("Successfully connected to Guitar Pro process.\n");
             m_last_error = "";
         }
         
@@ -166,7 +168,7 @@ private:
             return false;
         default:
             // This should never happen
-            throw std::runtime_error("REAPER is in an invalid play state!");
+            throw std::runtime_error("REAPER is in an invalid play state!\n");
         }
     }
 

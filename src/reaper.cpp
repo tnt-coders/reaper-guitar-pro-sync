@@ -41,7 +41,7 @@ struct Reaper::Impl final
         case 4:
             return ReaperPlayState::RECORDING;
         default:
-            throw std::runtime_error("GetPlayState: REAPER is in an invalid play state!");
+            throw std::runtime_error("GetPlayState: REAPER is in an invalid play state!\n");
         }
     }
 
@@ -54,7 +54,7 @@ struct Reaper::Impl final
             return ::GetToggleCommandState(PRESERVE_PITCH_COMMAND) != 0;
         default:
             // This should never happen
-            throw std::runtime_error("GetToggleCommandState: Command not found!");
+            throw std::runtime_error("GetToggleCommandState: Command not found!\n");
         }
     }
 
@@ -92,7 +92,7 @@ struct Reaper::Impl final
             break;
         default:
             // This should never happen
-            throw std::runtime_error("SetPlayState: Invalid play state!");
+            throw std::runtime_error("SetPlayState: Invalid play state!\n");
         }
     }
 
@@ -119,7 +119,7 @@ struct Reaper::Impl final
             break;
         default:
             // This should never happen
-            throw std::runtime_error("ToggleCommand: Command not found!");
+            throw std::runtime_error("ToggleCommand: Command not found!\n");
         }
     }
 };
