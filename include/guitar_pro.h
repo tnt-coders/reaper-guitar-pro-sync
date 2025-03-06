@@ -4,6 +4,30 @@
 
 namespace tnt {
 
+struct GuitarProState final
+{
+    // Play position in seconds
+    double play_position = 0.0;
+
+    // Loop start position in seconds
+    double loop_start_position = 0.0;
+
+    // Loop end position in seconds
+    double loop_end_position = 0.0;
+
+    // Play rate
+    double play_rate = 1.0;
+
+    // Pause/play state
+    bool play_state = false;
+
+    // Count in state
+    bool count_in_state = false;
+
+    // Loop state
+    bool loop_state = false;
+};    
+
 // Basic API to extract data from Guitar Pro
 class GuitarPro final
 {
@@ -11,18 +35,9 @@ public:
     GuitarPro();
     ~GuitarPro();    
 
-    // Refreshes all data from program memory
+    // Reads program state from memory
     // Throws std::runtime_error on failure
-    void ReadProcessMemory();
-
-    // Gets the play cursor position in seconds
-    double GetPlayPosition() const;
-
-    // Gets the current playback speed
-    double GetPlayRate() const;
-
-    // Gets the current pause/play state
-    bool GetPlayState() const;
+    GuitarProState ReadProcessMemory();
 
 private:
     struct Impl;
