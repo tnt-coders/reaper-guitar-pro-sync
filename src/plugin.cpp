@@ -9,6 +9,7 @@
 namespace tnt {
 
 static constexpr double MINIMUM_TIME_STEP = 0.001;
+static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;
 
 struct Plugin::Impl final {
     Impl(PluginState& plugin_state)
@@ -96,10 +97,10 @@ private:
         // TODO: The running playback rate memory location seems to take a bit to update when playing the song
         // Because of this, the playback rate may register as 0 for a fraction of a second.
         // Look for a better address in Cheat Engine so this can be done faster
-        if (m_guitar_pro_state.play_rate > 0.001)
+        if (m_guitar_pro_state.play_rate > MINIMUM_PLAY_RATE_STEP)
         {
             // If playback rates don't match, sync them
-            if (this->Desync(m_reaper.GetPlayRate(), m_guitar_pro_state.play_rate, 0.001))
+            if (this->Desync(m_reaper.GetPlayRate(), m_guitar_pro_state.play_rate, MINIMUM_PLAY_RATE_STEP))
             {
                 // Always ensure preserve pitch is set before stretching
                 this->EnablePreservePitch();
