@@ -8,6 +8,8 @@
 
 namespace tnt {
 
+static constexpr double MINIMUM_TIME_STEP = 0.001;
+
 struct Plugin::Impl final {
     Impl(PluginState& plugin_state)
         : m_plugin_state(plugin_state)
@@ -28,6 +30,12 @@ struct Plugin::Impl final {
                 m_last_error = error.what();
             }
         }
+
+        if (!m_last_error.empty())
+        {
+            m_reaper.ShowConsoleMessage("Successfully connected to Guitar Pro process.");
+            m_last_error = "";
+        }
         
         // Ensure REAPER stays in sync while Guitar Pro is playing
         if (m_guitar_pro_state.play_state)
@@ -37,11 +45,15 @@ struct Plugin::Impl final {
             this->SyncPlayRate();
         }
 
-        // Allow some control while REAPER is paused
+        // Allow some control while Guitar Pro and REAPER are both paused
         else if (this->ReaperStoppedOrPaused())
         {
             this->SyncTimeSelection();
-            this->SyncPlayPosition();
+
+            if (this->GuitarProCursorMoved(MINIMUM_TIME_STEP))
+            {
+                this->SyncPlayPosition();
+            }
         }
 
         // Ensure REAPER is playing if Guitar Pro is playing
@@ -54,17 +66,26 @@ struct Plugin::Impl final {
 private:
     void SyncTimeSelection()
     {
-        if (this->Desync(m_guitar_pro_state.loop_start_position, m_prev_guitar_pro_state.loop_start_position, 0.001) ||
-            this->Desync(m_guitar_pro_state.loop_end_position, m_prev_guitar_pro_state.loop_end_position, 0.001))
+        if (this->Desync(m_guitar_pro_state.time_selection_start_position, m_prev_guitar_pro_state.time_selection_start_position, MINIMUM_TIME_STEP) ||
+            this->Desync(m_guitar_pro_state.time_selection_end_position, m_prev_guitar_pro_state.time_selection_end_position, MINIMUM_TIME_STEP))
         {
-            m_reaper.SetTimeSelection(m_guitar_pro_state.loop_start_position, m_guitar_pro_state.loop_end_position, true);
+            m_reaper.SetTimeSelection(m_guitar_pro_state.time_selection_start_position, m_guitar_pro_state.time_selection_end_position, true);
         }
     }
 
     void SyncPlayPosition()
     {
-        if (this->GuitarProCursorMovedBack() ||
-            this->Desync(m_reaper.GetPlayPosition(), m_guitar_pro_state.play_position, 1))
+        double sync_threshold = MINIMUM_TIME_STEP;
+
+        // TODO: Try and find a way to reduce the sync threshold between REAPER and Guitar Pro while Guitar Pro is playing.
+        // Currently lowering the threshold causes REAPER to stutter.
+        if (m_guitar_pro_state.play_state)
+        {
+            sync_threshold = 1; // 1 second
+        }
+
+        if (this->GuitarProCursorMovedBack(MINIMUM_TIME_STEP) ||
+            this->Desync(m_reaper.GetPlayPosition(), m_guitar_pro_state.play_position, sync_threshold))
         {
             m_reaper.SetEditCursorPosition(m_guitar_pro_state.play_position, false, true);
         }
@@ -92,17 +113,16 @@ private:
 
     void SyncPlayState()
     {
-        // TODO: Play state sync is still broken on REPEAT of a loop with a count-in
         if (m_guitar_pro_state.play_state)
         {
-            // Do nothing if Guitar Pro is currently counting in and the cursor is not moving
-            if (m_guitar_pro_state.count_in_state && !this->GuitarProCursorMoved() ||
-                (m_prev_guitar_pro_state.play_position < 0.001 && m_guitar_pro_state.loop_start_position > 0.001)) // Fixes count-in not working on loop start
+            // Stop REAPER if Guitar Pro is currently counting in and the cursor is not moving
+            if (m_guitar_pro_state.count_in_state && !this->GuitarProCursorMoved(MINIMUM_TIME_STEP) ||
+                (m_prev_guitar_pro_state.play_position < MINIMUM_TIME_STEP && m_guitar_pro_state.time_selection_start_position > MINIMUM_TIME_STEP)) // Fixes count-in not working on loop start
             {
-                return;
+                m_reaper.SetPlayState(ReaperPlayState::STOPPED);
             }
 
-            if (this->ReaperStoppedOrPaused())
+            else if (this->ReaperStoppedOrPaused())
             {
                 // Use previous Guitar Pro play state to reduce latency on startup
                 m_reaper.SetEditCursorPosition(m_prev_guitar_pro_state.play_position, false, true);
@@ -123,14 +143,14 @@ private:
         return !(fabs(val1 - val2) < epsilon);
     }
 
-    bool GuitarProCursorMoved() const
+    bool GuitarProCursorMoved(const double epsilon) const
     {
-        return this->Desync(m_guitar_pro_state.play_position, m_prev_guitar_pro_state.play_position, 0.001);
+        return this->Desync(m_guitar_pro_state.play_position, m_prev_guitar_pro_state.play_position, epsilon);
     }
 
-    bool GuitarProCursorMovedBack() const
+    bool GuitarProCursorMovedBack(const double epsilon) const
     {
-        return GuitarProCursorMoved() && m_guitar_pro_state.play_position < m_prev_guitar_pro_state.play_position;
+        return GuitarProCursorMoved(epsilon) && m_guitar_pro_state.play_position < m_prev_guitar_pro_state.play_position;
     }
 
     bool ReaperStoppedOrPaused() const
@@ -164,7 +184,7 @@ private:
     GuitarProState m_prev_guitar_pro_state;
     GuitarProState m_guitar_pro_state;
 
-    // Keeps track of the last error (prevents spamming the console with errors)
+    // Keeps track of the last error (prevents spamming the log with errors)
     std::string m_last_error = "";
 };
 

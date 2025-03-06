@@ -10,10 +10,10 @@ struct GuitarProState final
     double play_position = 0.0;
 
     // Loop start position in seconds
-    double loop_start_position = 0.0;
+    double time_selection_start_position = 0.0;
 
     // Loop end position in seconds
-    double loop_end_position = 0.0;
+    double time_selection_end_position = 0.0;
 
     // Play rate
     double play_rate = 1.0;
