@@ -167,7 +167,8 @@ private:
         if (m_guitar_pro_state.play_state)
         {
             // Stop REAPER if Guitar Pro is currently counting in and the cursor is not moving
-            if (m_guitar_pro_state.count_in_state && !this->GuitarProCursorMoved())
+            if (m_guitar_pro_state.count_in_state
+             && (!this->GuitarProCursorMoved() || (m_guitar_pro_state.time_selection_start_position > MINIMUM_TIME_STEP && m_prev_guitar_pro_state.play_position < MINIMUM_TIME_STEP)))
             {
                 // DO NOT cut a loop short
                 if (!this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, MINIMUM_TIME_STEP)
