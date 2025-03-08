@@ -8,6 +8,7 @@ namespace tnt {
 static constexpr int SAMPLE_RATE = 44100;
 static constexpr int PLAY_STATE_FLAG_POSITION = 8;
 static constexpr int COUNT_IN_STATE_FLAG_POSITION = 8;
+static constexpr int LOOP_STATE_FLAG_POSITION = 8;
 
 struct GuitarPro::Impl final
 {
@@ -22,6 +23,7 @@ struct GuitarPro::Impl final
         float play_rate = process_reader.ReadMemoryAddress<float>(0x00A24F80, { 0x18, 0xA0, 0x38, 0x80, 0x18, 0x68, 0x28, 0x74 });
         DWORD play_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4E0, 0x0, 0x20, 0x20, 0x0 });
         DWORD count_in_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xE0, 0x0, 0x28, 0x10, 0x18, 0x60, 0x0 });
+        DWORD loop_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4B8, 0x28, 0x88, 0x80, 0x0 });
 
         GuitarProState state{};
         state.play_position = static_cast<double>(cursor_location) / SAMPLE_RATE;
@@ -30,6 +32,7 @@ struct GuitarPro::Impl final
         state.play_rate = static_cast<double>(play_rate);
         state.play_state = play_state_flag_container & (1U << PLAY_STATE_FLAG_POSITION);
         state.count_in_state = count_in_state_flag_container & (1U << COUNT_IN_STATE_FLAG_POSITION);
+        state.loop_state = loop_state_flag_container & (1U << LOOP_STATE_FLAG_POSITION);
 
         return state;
     }

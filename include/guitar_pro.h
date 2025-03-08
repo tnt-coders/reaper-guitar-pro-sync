@@ -23,6 +23,9 @@ struct GuitarProState final
 
     // Count in state
     bool count_in_state = false;
+
+    // Loop state
+    bool loop_state = false;
 };    
 
 // Basic API to extract data from Guitar Pro
@@ -30,7 +33,7 @@ class GuitarPro final
 {
 public:
     GuitarPro();
-    ~GuitarPro();    
+    ~GuitarPro();
 
     // Reads program state from memory
     // Throws std::runtime_error on failure

@@ -50,8 +50,11 @@ public:
     // void CSurf_OnRecord()
     void SetPlayState(const ReaperPlayState& play_state) const;
 
+    // int GetSetRepeat(int val)
+    void SetRepeat(const bool repeat) const;
+
     // void GetSet_LoopTimeRange(bool isSet, bool isLoop, double* startOut, double* endOut, bool allowautoseek)
-    void SetTimeSelection(const double start_time, const double end_time, const bool seek_play) const;
+    void SetTimeSelection(const double start_time, const double end_time) const;
 
     // void ShowConsoleMsg(const char* msg)
     void ShowConsoleMessage(const std::string& message) const;
