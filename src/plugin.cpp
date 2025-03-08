@@ -198,16 +198,14 @@ private:
         }
 
         // Stop REAPER if Guitar Pro is not playing
-        else if (!this->ReaperStoppedOrPaused())
+        else if (!this->ReaperStoppedOrPaused() && m_prev_guitar_pro_state.play_state)
         {
-            // DO NOT cut a loop short
-            if (m_reaper.GetPlayPosition() < m_guitar_pro_state.time_selection_end_position)
+            // DO NOT cut a time selection short
+            if (m_reaper.GetPlayPosition() < m_guitar_pro_state.time_selection_end_position
+             && this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD))
             {
-                // But also don't loop forever. Stop the moment the cursor jumps back
-                if (m_guitar_pro_state.play_position > m_prev_guitar_pro_state.play_position)
-                {
-                    return;
-                }
+                m_guitar_pro_state.play_state = true;
+                return;
             }
 
             m_reaper.SetPlayState(ReaperPlayState::STOPPED);
@@ -299,10 +297,10 @@ private:
     GuitarProState m_prev_guitar_pro_state;
     GuitarProState m_guitar_pro_state;
 
+    std::array<double, DESYNC_WINDOW_SIZE> m_desync_window = { 0.0 };
+
     // Keeps track of the last error (prevents spamming the log with errors)
     std::string m_last_error = "";
-
-    std::array<double, DESYNC_WINDOW_SIZE> m_desync_window = { 0.0 };
 };
 
 Plugin::Plugin(PluginState& plugin_state)
