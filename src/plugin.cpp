@@ -202,7 +202,8 @@ private:
         {
             // DO NOT cut a time selection short
             if (m_reaper.GetPlayPosition() < m_guitar_pro_state.time_selection_end_position
-             && this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD))
+             && this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD)
+             && !this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD))
             {
                 m_guitar_pro_state.play_state = true;
                 return;
