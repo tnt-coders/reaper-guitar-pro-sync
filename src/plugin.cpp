@@ -10,7 +10,7 @@
 namespace tnt {
 
 static constexpr int DESYNC_WINDOW_SIZE = 3;
-static constexpr double DESYNC_THRESHOLD = 0.1; 
+static constexpr double DESYNC_THRESHOLD = 0.2; 
 static constexpr double MINIMUM_TIME_STEP = 0.001;
 static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;
 
@@ -72,7 +72,6 @@ struct Plugin::Impl final {
 
             if (this->GuitarProPlayRateChanged())
             {
-
                 // TODO this doesn't work while paused because the value read from memory only updates at runtime.
                 // We need to find a new memory address to get this to work more effectively
                 this->SyncPlayRate();
@@ -118,8 +117,8 @@ private:
             if (this->CompareDoubles(m_guitar_pro_state.play_position, m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD))
             {
                 // UNLESS REAPER is right at the start or end of the loop
-                if (this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD * 2)
-                 || this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD * 2))
+                if (this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD)
+                 || this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD))
                 {
                     return;
                 }
@@ -133,11 +132,11 @@ private:
                 this->SetPlayPosition(0.0);
             }
 
-            // User must have just clicked somewhere during playback
-            // This needs to be checked over the course of a few loops though to ensure accuracy
-            else
+            // User must have moved the play cursor by clicking during playback
+            // Guitar Pro can be a bit inconsistent so this needs to be checked over the course of a few loops though to ensure accuracy
+            else if (this->Desync(DESYNC_THRESHOLD))
             {
-                //this->SetPlayPosition(m_guitar_pro_state.play_position);
+                this->SetPlayPosition(m_guitar_pro_state.play_position);
             }
         }
     }
@@ -213,6 +212,24 @@ private:
 
             m_reaper.SetPlayState(ReaperPlayState::STOPPED);
         }
+    }
+
+    bool Desync(const double threshold)
+    {
+        std::rotate(m_desync_window.rbegin(), m_desync_window.rbegin() + 1, m_desync_window.rend());
+        m_desync_window[0] = fabs(m_reaper.GetPlayPosition() - m_guitar_pro_state.play_position);
+
+        // Return false if ANY value in the window is not greater than the threshold
+        for (const double value : m_desync_window)
+        {
+            if (value < threshold)
+            {
+                return false;
+            }
+        }
+
+        // Desync has definitively occurred
+        return true;
     }
     
     void SetPlayPosition(const double time)
