@@ -2,6 +2,8 @@
 
 #include "process_reader.h"
 
+#include <utility>
+
 namespace tnt {
 
 // Constants
@@ -24,6 +26,13 @@ struct GuitarPro::Impl final
         DWORD play_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4E0, 0x0, 0x20, 0x20, 0x0 });
         DWORD count_in_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xE0, 0x0, 0x28, 0x10, 0x18, 0x60, 0x0 });
         DWORD loop_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(0x00A24F80, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4B8, 0x28, 0x88, 0x80, 0x0 });
+
+        // Make sure the time selection start is always before the end
+        // If you drag from right to left in Guitar Pro the values may be flipped
+        if (time_selection_start_location > time_selection_end_location)
+        {
+            std::swap(time_selection_start_location, time_selection_end_location);
+        }
 
         GuitarProState state{};
         state.play_position = static_cast<double>(cursor_location) / SAMPLE_RATE;
