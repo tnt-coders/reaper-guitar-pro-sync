@@ -55,21 +55,23 @@ struct Plugin::Impl final {
         // Allow some control while Guitar Pro and REAPER are both paused
         else if (this->ReaperStoppedOrPaused())
         {
+            // Sync loop state
             if (this->GuitarProLoopStateChanged())
             {
                 this->SyncLoopState();
             }
 
+            // Sync time selection and cursor
             if (this->GuitarProTimeSelectionChanged())
             {
                 this->SyncTimeSelection();
             }
-
-            if (this->GuitarProCursorMoved())
+            else if (this->GuitarProCursorMoved())
             {
                 this->SetPlayPosition(m_guitar_pro_state.play_position);
             }
 
+            // Sync play rate
             if (this->GuitarProPlayRateChanged())
             {
                 // TODO this doesn't work while paused because the value read from memory only updates at runtime.
