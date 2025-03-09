@@ -62,12 +62,14 @@ struct Plugin::Impl final {
             }
 
             // Sync time selection and cursor
-            if (this->GuitarProTimeSelectionChanged())
+            if (this->GuitarProTimeSelectionChanged() && m_guitar_pro_state.time_selection_end_position > MINIMUM_PLAY_RATE_STEP)
             {
                 this->SyncTimeSelection();
+                this->SetPlayPosition(m_guitar_pro_state.time_selection_start_position);
             }
             else if (this->GuitarProCursorMoved())
             {
+                this->SyncTimeSelection();
                 this->SetPlayPosition(m_guitar_pro_state.play_position);
             }
 
@@ -104,11 +106,7 @@ private:
     void SyncTimeSelection()
     {
         // Sync the time selection
-        if (this->GuitarProTimeSelectionChanged())
-        {
-            m_reaper.SetTimeSelection(m_guitar_pro_state.time_selection_start_position, m_guitar_pro_state.time_selection_end_position);
-            this->SetPlayPosition(m_guitar_pro_state.time_selection_start_position);
-        }
+        m_reaper.SetTimeSelection(m_guitar_pro_state.time_selection_start_position, m_guitar_pro_state.time_selection_end_position);
     }
 
     void SyncPlayPosition()
