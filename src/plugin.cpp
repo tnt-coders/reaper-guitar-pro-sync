@@ -9,8 +9,9 @@
 
 namespace tnt {
 
-static constexpr int DESYNC_WINDOW_SIZE = 3;
-static constexpr double DESYNC_THRESHOLD = 0.2; 
+// REAPER runs this periodically 30 times/second so a desync window of 6 is approximately 200ms
+static constexpr int DESYNC_WINDOW_SIZE = 6;
+static constexpr double DESYNC_THRESHOLD = 0.1; 
 static constexpr double MINIMUM_TIME_STEP = 0.001;
 static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;
 
