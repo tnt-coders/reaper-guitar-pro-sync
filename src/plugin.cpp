@@ -9,11 +9,13 @@
 
 namespace tnt {
 
-// REAPER runs this periodically 30 times/second so a desync window of 6 is approximately 200ms
-static constexpr int DESYNC_WINDOW_SIZE = 6;
-static constexpr double DESYNC_THRESHOLD = 0.2; 
-static constexpr double MINIMUM_TIME_STEP = 0.001;
-static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;
+// REAPER runs this periodically 30 times/second so a desync window of 9 is approximately 300ms
+static constexpr int DESYNC_WINDOW_SIZE = 9;
+
+static constexpr double DESYNC_THRESHOLD = 0.3;                 // Seconds
+static constexpr double MINIMUM_TIME_STEP = 0.001;              // Seconds
+static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;         // Seconds
+static constexpr double GUITAR_PRO_CURSOR_JUMP_THRESHOLD = 0.1; // Seconds
 
 struct Plugin::Impl final {
     Impl(PluginState& plugin_state)
@@ -133,7 +135,13 @@ private:
                 this->SetPlayPosition(0.0);
             }
 
-            // User must have moved the play cursor by clicking during playback
+            // If the guitar pro cursor has jumped, follow the jump
+            else if (!this->CompareDoubles(m_prev_guitar_pro_state.play_position, m_guitar_pro_state.play_position, GUITAR_PRO_CURSOR_JUMP_THRESHOLD))
+            {
+                this->SetPlayPosition(m_guitar_pro_state.play_position);
+            }
+
+            // If a desync occurs for any other reason, get it back in sync
             // Guitar Pro can be a bit inconsistent so this needs to be checked over the course of a few loops though to ensure accuracy
             else if (this->Desync(DESYNC_THRESHOLD))
             {
@@ -251,21 +259,18 @@ private:
 
     bool GuitarProTimeSelectionChanged() const
     {
-        // Note "!=" is intentionally used here when comparing doubles -- this is testing for EXACT equality
-        return m_guitar_pro_state.time_selection_start_position != m_prev_guitar_pro_state.time_selection_start_position
-            || m_guitar_pro_state.time_selection_end_position != m_prev_guitar_pro_state.time_selection_end_position;
+        return !this->CompareDoubles(m_guitar_pro_state.time_selection_start_position, m_prev_guitar_pro_state.time_selection_start_position, MINIMUM_TIME_STEP)
+            || !this->CompareDoubles(m_guitar_pro_state.time_selection_end_position, m_prev_guitar_pro_state.time_selection_end_position, MINIMUM_TIME_STEP);
     }
 
     bool GuitarProCursorMoved() const
     {
-        // Note "!=" is intentionally used here when comparing doubles -- this is testing for EXACT equality
-        return m_guitar_pro_state.play_position != m_prev_guitar_pro_state.play_position;
+        return !this->CompareDoubles(m_guitar_pro_state.play_position, m_prev_guitar_pro_state.play_position, MINIMUM_TIME_STEP);
     }
 
     bool GuitarProPlayRateChanged() const
     {
-        // Note "!=" is intentionally used here when comparing doubles -- this is testing for EXACT equality
-        return m_guitar_pro_state.play_rate != m_prev_guitar_pro_state.play_rate;
+        return !this->CompareDoubles(m_guitar_pro_state.play_rate, m_prev_guitar_pro_state.play_rate, MINIMUM_PLAY_RATE_STEP);
     }
 
     bool ReaperStoppedOrPaused() const
