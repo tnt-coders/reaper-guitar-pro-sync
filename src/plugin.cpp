@@ -16,6 +16,7 @@ static constexpr double DESYNC_THRESHOLD = 0.3;                 // Seconds
 static constexpr double MINIMUM_TIME_STEP = 0.001;              // Seconds
 static constexpr double MINIMUM_PLAY_RATE_STEP = 0.001;         // Seconds
 static constexpr double GUITAR_PRO_CURSOR_JUMP_THRESHOLD = 0.1; // Seconds
+static constexpr double LATENCY_COMPENSATION = 0.05;           // Seconds
 
 struct Plugin::Impl final {
     Impl(PluginState& plugin_state)
@@ -116,36 +117,24 @@ private:
     {
         if (this->GuitarProCursorMoved() && !CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.play_position, DESYNC_THRESHOLD))
         {
-            // If play position is near loop start, set the play position to the loop start 
-            if (this->CompareDoubles(m_guitar_pro_state.play_position, m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD))
+            // DO NOT SYNC if REAPER is right at the start or end of the loop
+            if (this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD)
+             || this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD))
             {
-                // UNLESS REAPER is right at the start or end of the loop
-                if (this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_start_position, DESYNC_THRESHOLD)
-                 || this->CompareDoubles(m_reaper.GetPlayPosition(), m_guitar_pro_state.time_selection_end_position, DESYNC_THRESHOLD))
-                {
-                    return;
-                }
-
-                this->SetPlayPosition(m_guitar_pro_state.time_selection_start_position);
-            }
-
-            // If the play position is reset back to the start of the song, set the play position to 0.
-            else if (this->CompareDoubles(m_guitar_pro_state.play_position, 0.0, DESYNC_THRESHOLD))
-            {
-                this->SetPlayPosition(0.0);
+                return;
             }
 
             // If the guitar pro cursor has jumped, follow the jump
-            else if (!this->CompareDoubles(m_prev_guitar_pro_state.play_position, m_guitar_pro_state.play_position, GUITAR_PRO_CURSOR_JUMP_THRESHOLD))
+            if (!this->CompareDoubles(m_prev_guitar_pro_state.play_position, m_guitar_pro_state.play_position, GUITAR_PRO_CURSOR_JUMP_THRESHOLD))
             {
-                this->SetPlayPosition(m_guitar_pro_state.play_position);
+                this->SetPlayPosition(m_guitar_pro_state.play_position + LATENCY_COMPENSATION);
             }
 
             // If a desync occurs for any other reason, get it back in sync
             // Guitar Pro can be a bit inconsistent so this needs to be checked over the course of a few loops though to ensure accuracy
             else if (this->Desync(DESYNC_THRESHOLD))
             {
-                this->SetPlayPosition(m_guitar_pro_state.play_position);
+                this->SetPlayPosition(m_guitar_pro_state.play_position + LATENCY_COMPENSATION);
             }
         }
     }
@@ -193,13 +182,12 @@ private:
                 // If a loop is specified start there
                 if (m_guitar_pro_state.time_selection_start_position > MINIMUM_TIME_STEP)
                 {
-                    this->SetPlayPosition(m_guitar_pro_state.time_selection_start_position);
+                    this->SetPlayPosition(m_guitar_pro_state.time_selection_start_position + LATENCY_COMPENSATION);
                 }
 
-                // Otherwise use previous Guitar Pro play state to reduce latency on startup
                 else
                 {
-                    this->SetPlayPosition(m_prev_guitar_pro_state.play_position);
+                    this->SetPlayPosition(m_guitar_pro_state.play_position + LATENCY_COMPENSATION);
                 }
 
                 m_reaper.SetPlayState(ReaperPlayState::PLAYING);
