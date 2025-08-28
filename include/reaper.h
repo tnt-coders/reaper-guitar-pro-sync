@@ -10,7 +10,6 @@ enum class ReaperPlayState
     STOPPED,
     PLAYING,
     PAUSED,
-    RECORDING,
 };
 
 enum class ReaperToggleCommand

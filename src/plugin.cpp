@@ -269,7 +269,6 @@ private:
         case ReaperPlayState::PAUSED:
             return true;
         case ReaperPlayState::PLAYING:
-        case ReaperPlayState::RECORDING:
             return false;
         default:
             // This should never happen

@@ -30,18 +30,17 @@ struct Reaper::Impl final
     ReaperPlayState GetPlayState() const
     {
         const int play_state = ::GetPlayState();
-        switch (play_state)
+        if (play_state & 2)
         {
-        case 0:
-            return ReaperPlayState::STOPPED;
-        case 1:
-            return ReaperPlayState::PLAYING;
-        case 2:
             return ReaperPlayState::PAUSED;
-        case 4:
-            return ReaperPlayState::RECORDING;
-        default:
-            throw std::runtime_error("GetPlayState: REAPER is in an invalid play state!\n");
+        }
+        else if (play_state & 1)
+        {
+            return ReaperPlayState::PLAYING;
+        }
+        else
+        {
+            return ReaperPlayState::STOPPED;
         }
     }
 
@@ -86,9 +85,6 @@ struct Reaper::Impl final
             break;
         case ReaperPlayState::PAUSED:
             ::CSurf_OnPause();
-            break;
-        case ReaperPlayState::RECORDING:
-            ::CSurf_OnRecord();
             break;
         default:
             // This should never happen
