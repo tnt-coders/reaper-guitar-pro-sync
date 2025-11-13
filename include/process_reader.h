@@ -1,13 +1,19 @@
 #pragma once
 
+#include "wstring_utils.h"
+
 #include <windows.h> // Must be included before tlhelp32.h
 #include <tlhelp32.h>
+#include <winver.h>
 
 #include <codecvt>
 #include <format>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
+
+#pragma comment(lib, "Version.lib") // Ensure linking to Version.lib
 
 namespace tnt {
 
@@ -24,6 +30,8 @@ public:
             throw std::runtime_error(std::format("Failed to get process ID for process '{}'.\n", WStringToString(m_process_name)));
         }
 
+        m_process_path = this->GetProcessPath(m_process_id);
+
         m_module_base_address = this->GetModuleBaseAddress(m_module_name.c_str());
         if (!m_module_base_address)
         {
@@ -39,6 +47,39 @@ public:
     ~ProcessReader()
     {
         CloseHandle(m_process_handle);
+    }
+
+    std::wstring GetProcessVersion() const
+    {
+        DWORD handle = 0;
+        const DWORD size = GetFileVersionInfoSizeW(m_process_path.c_str(), &handle);
+        if (size == 0)
+        {
+            return L"";
+        }
+
+        std::vector<BYTE> data(size);
+        if (!GetFileVersionInfoW(m_process_path.c_str(), handle, size, data.data()))
+        {
+            return L"";
+        }
+
+        VS_FIXEDFILEINFO* fileInfo = nullptr;
+        UINT len = 0;
+        if (!VerQueryValueW(data.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &len))
+        {
+            return L"";
+        }
+
+        if (fileInfo)
+        {
+            return std::to_wstring(HIWORD(fileInfo->dwFileVersionMS)) + L"."
+                + std::to_wstring(LOWORD(fileInfo->dwFileVersionMS)) + L"."
+                + std::to_wstring(HIWORD(fileInfo->dwFileVersionLS)) + L"."
+                + std::to_wstring(LOWORD(fileInfo->dwFileVersionLS));
+        }
+
+        return L"";
     }
 
     template <typename T>
@@ -76,11 +117,6 @@ public:
     }
 
 private:
-    std::wstring m_process_name;
-    std::wstring m_module_name;
-    DWORD m_process_id;
-    DWORD_PTR m_module_base_address;
-    HANDLE m_process_handle;
     
     DWORD GetProcessID(const wchar_t* process_name)
     {
@@ -108,6 +144,26 @@ private:
         CloseHandle(snapshot_handle);
 
         return 0;
+    }
+
+    std::wstring GetProcessPath(const DWORD pid)
+    {
+        std::wstring path;
+        const HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (process_handle)
+        {
+            wchar_t buffer[MAX_PATH];
+            DWORD size = MAX_PATH;
+
+            if (QueryFullProcessImageNameW(process_handle, 0, buffer, &size))
+            {
+                path.assign(buffer, size);
+            }
+
+            CloseHandle(process_handle);
+        }
+
+        return path;
     }
 
     DWORD_PTR GetModuleBaseAddress(const wchar_t* module_name)
@@ -156,12 +212,12 @@ private:
         return address;
     }
 
-    // Utility function to convert a std::wstring into a std::string
-    std::string WStringToString(const std::wstring& wstr)
-    {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-        return converter.to_bytes(wstr);
-    }
+    std::wstring m_process_name;
+    std::wstring m_module_name;
+    std::wstring m_process_path;
+    DWORD m_process_id;
+    DWORD_PTR m_module_base_address;
+    HANDLE m_process_handle;
 };
 
 }
