@@ -17,31 +17,33 @@ static constexpr int LOOP_STATE_FLAG_POSITION = 8;
 
 struct GuitarPro::Impl final
 {
-    Impl()
-        : m_process_reader(L"GuitarPro.exe", L"GPCore.dll")
+    GuitarProState ReadProcessMemory()
     {
-        m_module_offset = [&] {
-            const auto process_version = m_process_reader.GetProcessVersion();
+        const ProcessReader process_reader(L"GuitarPro.exe", L"GPCore.dll");
+
+        const auto module_offset = [&] {
+            const auto process_version = process_reader.GetProcessVersion();
 
             if (process_version == L"8.1.3.121")
             {
                 return 0x00A24F80;
             }
+            else if (process_version == L"8.1.4.43")
+            {
+                return 0x00A26F80;
+            }
 
             throw std::runtime_error(std::format("Unsupported Guitar Pro version detected: '{}'\n.", WStringToString(process_version)));
         }();
-    }
 
-    GuitarProState ReadProcessMemory()
-    {
         // Addresses and offsets acquired from CheatEngine with Guitar Pro version 8.1.3 - Build 121
-        int cursor_location = m_process_reader.ReadMemoryAddress<int>(m_module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1D8, 0x0 });
-        int time_selection_start_location = m_process_reader.ReadMemoryAddress<int>(m_module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1E0, 0x0 });
-        int time_selection_end_location = m_process_reader.ReadMemoryAddress<int>(m_module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1E0, 0x8 });
-        float play_rate = m_process_reader.ReadMemoryAddress<float>(m_module_offset, { 0x18, 0xA0, 0x38, 0x80, 0x18, 0x68, 0x28, 0x74 });
-        DWORD play_state_flag_container = m_process_reader.ReadMemoryAddress<DWORD>(m_module_offset, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4E0, 0x0, 0x20, 0x20, 0x0 });
-        DWORD count_in_state_flag_container = m_process_reader.ReadMemoryAddress<DWORD>(m_module_offset, { 0x18, 0xE0, 0x0, 0x28, 0x10, 0x18, 0x60, 0x0 });
-        DWORD loop_state_flag_container = m_process_reader.ReadMemoryAddress<DWORD>(m_module_offset, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4B8, 0x28, 0x88, 0x80, 0x0 });
+        const int cursor_location = process_reader.ReadMemoryAddress<int>(module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1D8, 0x0 });
+        int time_selection_start_location = process_reader.ReadMemoryAddress<int>(module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1E0, 0x0 });
+        int time_selection_end_location = process_reader.ReadMemoryAddress<int>(module_offset, { 0x18, 0xA0, 0x38, 0x1A8, 0x20, 0x1E0, 0x8 });
+        const float play_rate = process_reader.ReadMemoryAddress<float>(module_offset, { 0x18, 0xA0, 0x38, 0x80, 0x18, 0x68, 0x28, 0x74 });
+        const DWORD play_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(module_offset, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4E0, 0x0, 0x20, 0x20, 0x0 });
+        const DWORD count_in_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(module_offset, { 0x18, 0xE0, 0x0, 0x28, 0x10, 0x18, 0x60, 0x0 });
+        const DWORD loop_state_flag_container = process_reader.ReadMemoryAddress<DWORD>(module_offset, { 0x18, 0xA0, 0x38, 0x70, 0x30, 0x4B8, 0x28, 0x88, 0x80, 0x0 });
 
         // Make sure the time selection start is always before the end
         // If you drag from right to left in Guitar Pro the values may be flipped
@@ -61,11 +63,6 @@ struct GuitarPro::Impl final
 
         return state;
     }
-
-private:
-
-    ProcessReader m_process_reader;
-    DWORD_PTR m_module_offset;
 };
 
 GuitarPro::GuitarPro()

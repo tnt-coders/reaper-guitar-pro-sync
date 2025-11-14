@@ -83,7 +83,7 @@ public:
     }
 
     template <typename T>
-    T ReadMemoryAddress(const DWORD_PTR module_offset, const std::vector<DWORD_PTR> pointer_offsets)
+    T ReadMemoryAddress(const DWORD_PTR module_offset, const std::vector<DWORD_PTR> pointer_offsets) const
     {
         DWORD_PTR base_address = m_module_base_address + module_offset;
         DWORD_PTR address = this->ReadPointer(base_address, pointer_offsets);
@@ -118,7 +118,7 @@ public:
 
 private:
     
-    DWORD GetProcessID(const wchar_t* process_name)
+    DWORD GetProcessID(const wchar_t* process_name) const
     {
         HANDLE snapshot_handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot_handle == INVALID_HANDLE_VALUE)
@@ -146,7 +146,7 @@ private:
         return 0;
     }
 
-    std::wstring GetProcessPath(const DWORD pid)
+    std::wstring GetProcessPath(const DWORD pid) const
     {
         std::wstring path;
         const HANDLE process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
@@ -166,7 +166,7 @@ private:
         return path;
     }
 
-    DWORD_PTR GetModuleBaseAddress(const wchar_t* module_name)
+    DWORD_PTR GetModuleBaseAddress(const wchar_t* module_name) const
     {
         const HANDLE snapshot_handle = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, m_process_id);
         if (snapshot_handle == INVALID_HANDLE_VALUE)
@@ -194,7 +194,7 @@ private:
         return 0;
     }
 
-    DWORD_PTR ReadPointer(const DWORD_PTR base_address, const std::vector<DWORD_PTR> offsets)
+    DWORD_PTR ReadPointer(const DWORD_PTR base_address, const std::vector<DWORD_PTR> offsets) const
     {
         DWORD_PTR address = base_address;
         DWORD_PTR temp_address;
