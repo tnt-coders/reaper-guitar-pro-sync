@@ -40,19 +40,19 @@ set(PROJECT_LIB_DIR ${PROJECT_SOURCE_DIR}/third_party)
 
 FetchContent_Declare(reaper-sdk
     GIT_REPOSITORY https://github.com/justinfrankel/reaper-sdk
-    GIT_TAG        "origin/main" # or specify a tag or branch here
+    GIT_TAG        "56b9b81f1a71785c4574b7c1217e926c41260200" # or specify a tag or branch here
     SOURCE_DIR     "${PROJECT_LIB_DIR}/reaper-sdk"
     )
 
 FetchContent_Declare(WDL
     GIT_REPOSITORY https://github.com/justinfrankel/WDL
     SOURCE_DIR     "${PROJECT_LIB_DIR}/WDL"
-    GIT_TAG        "origin/main"
+    GIT_TAG        "0fb861b5385a6beb1add987183ef2c03221f5992"
     )
 
 FetchContent_Declare(GSL
     GIT_REPOSITORY "https://github.com/microsoft/GSL"
-    GIT_TAG        "origin/main"
+    GIT_TAG        "543d0dd3fe966ddf20e884b44e5fdbf12cb43784"
     SOURCE_DIR     "${PROJECT_LIB_DIR}/GSL"
 )
 
